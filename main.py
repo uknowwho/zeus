@@ -33,8 +33,10 @@ dictionary = {
 
 
 def preprocess(sentence):
-    processed_sentence = []
-    # preprocessing
+    """Preprocesses sentence: normalizes whitespace, removes punctionation and stems words (removing inflection).
+        sentence:	string, as input by user
+        returns:	sentence as string, preprocessed"""
+
     tokenizer = nltk.RegexpTokenizer(r"\w+")  # remove punctuation
     stemmer = PorterStemmer()
     tokenized = tokenizer.tokenize(sentence)
