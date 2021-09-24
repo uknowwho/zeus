@@ -53,24 +53,86 @@ def preprocess(sentence):
 def extract_preferences(utterance):
     tokenized = word_tokenize(utterance)  # sentence broken into words
     no_stopwords = [word for word in tokenized if not word in stopwords.words()]  # remove stopwords for this part
-    # print(no_stopwords)
     food, area, pricerange = "", "", ""
 
+    # Plain lookup
     for word in no_stopwords:
-        for foods in food_list:
-            if nltk.edit_distance(word, foods) <= 2:
-                food = word
-        for areas in area_list:
-            if nltk.edit_distance(word, areas) <= 2:
-                area = word
-        for prices in pricerange_list:
-            if nltk.edit_distance(word, prices) <= 2:
-                pricerange = word
+        if word in food_list:
+            food = word
+
+        elif word in area_list:
+            area = word
+
+        elif word in pricerange_list:
+            pricerange = word
+
+
+    if food == "":
+        # Rules for food
+        try:
+            # matches strings like "spanish food" or "spanish restaurant"
+            word = re.search(r"(\w+)(\sfood|\srestaurant)", utterance).group(1)
+
+            if word == "any":
+                food = "dontcare"
+
+            else:
+                # randomly choose a food that is closest to the matched word
+                one_dist = []
+                two_dist = []
+                for foods in food_list:
+                    distance = nltk.edit_distance(word, foods)
+                    if distance == 2:
+                        two_dist.append(foods)
+                    if distance == 1:
+                        one_dist.append(foods)
+
+                if one_dist != []:
+                    food = np.random.choice(one_dist)
+
+                elif two_dist != []:
+                    food = np.random.choice(two_dist)
+
+        except AttributeError:
+            food = ""
+
+    # correct spelling mistakes
+    if area == "":
+        try:
+            # matches strings like "spanish food" or "spanish restaurant"
+            word = re.search(r"(\w+)(\sarea)", utterance).group(1)
+
+            # if no preference
+            if word == "any":
+                area = "dontcare"
+
+            else:
+                for word in no_stopwords:
+                    for areas in area_list:
+                        if nltk.edit_distance(word, areas) <= 2:
+                            area = areas
+
+        except AttributeError:
+            area = ""
+
+    # correct spelling mistakes and detect -ly variants
+    if pricerange == "":
+        try:
+            word = re.search(r"(\w+)(\spricerange)", utterance).group(1)
+
+            if word == "any":
+                pricerange = "dontcare"
+
+            else:
+                for word in no_stopwords:
+                    for prices in pricerange_list:
+                        if nltk.edit_distance(word, prices) <= 2:
+                            pricerange = prices
+
+        except AttributeError:
+            pricerange = ""
 
     preferences = [food, area, pricerange]
-    print("Preferences", preferences)
-
-    # dontcare case?
 
     return preferences
 
