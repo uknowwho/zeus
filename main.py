@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 import matplotlib as plt
 import nltk
-import editdistance
+# import editdistance # import is never used, we use nltk.edit_distance
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
@@ -14,8 +14,22 @@ from keras.preprocessing.sequence import pad_sequences
 nltk.download('punkt')
 nltk.download('stopwords')
 
-dictionary = {0: "ack", 1: "affirm", 2: "bye", 3: "confirm", 4: "deny", 5: "hello", 6: "inform", 7: "negate", 8: "null",
-              9: "repeat", 10: "reqalts", 11: "reqmore", 12: "request", 13: "restart", 14: "thankyou"}
+dictionary = {
+  0: "ack", 
+  1: "affirm", 
+  2: "bye", 
+  3: "confirm", 
+  4: "deny", 
+  5: "hello", 
+  6: "inform", 
+  7: "negate", 
+  8: "null",
+  9: "repeat", 
+  10: "reqalts", 
+  11: "reqmore", 
+  12: "request", 
+  13: "restart", 
+  14: "thankyou"}
 
 
 def preprocess(sentence):
@@ -32,10 +46,6 @@ def preprocess(sentence):
     # flatten list in stemmed))
     processed_sentence = ' '.join(stem for stem in stemmed)
     return processed_sentence
-
-
-def generate_reply(state):
-    return reply
 
 
 def extract_preferences(utterance):
@@ -113,8 +123,6 @@ def dialog_management(state, utterance, preferences):
     print("Utterance class", utterance_class)
     print("State", state)
 
-
-
     if state == 2:  # Zeusbot finished greeting the guest and we get their first reply
         utterance_class = "inform"
         if utterance_class == "inform":
@@ -168,11 +176,10 @@ def dialog_management(state, utterance, preferences):
             reply = "I'm sorry but I don't understand, let's start over \n Welcome to Zeus bot, let me help you suggest a restaurant, do you have any preferences?"
             next_state = 2
             preferences = ["", "", ""]
-            
-            
+                
     print("return ")
     return next_state, reply, preferences
-
+  
 
 if __name__ == "__main__":
     df = pd.read_csv("B:/Documents/Master AI/INFOMAIR/venv/src/restaurant_info.csv")
@@ -196,6 +203,3 @@ if __name__ == "__main__":
             break
         state, reply, preferences = dialog_management(state, user_input, preferences)
         print(reply)
-
-
-
