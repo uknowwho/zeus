@@ -7,7 +7,6 @@ import re
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
-from sklearn.feature_extraction.text import CountVectorizer
 from keras.models import load_model
 from keras.preprocessing.sequence import pad_sequences
 
@@ -52,17 +51,23 @@ def preprocess(sentence):
 
 
 def generate_reply(df):
-    reply = "I think you would really like " + df["restaurantname"].to_string(index=False) + ", its located at  " + \
-            df["addr"].to_string(index=False) + ", " + df["postcode"].to_string(index=False) + \
-            " in the " + df["area"].to_string(index=False) + " and the phone number is " + \
-            df["phone"].to_string(index=False) + ". \n  Do you agree? If you keep finding me " \
+    # Bot couldnt find a restaurant so it starts over
+    if df.values.size == 0:
+        reply = "I am sorry, I could not find a restaurant to match your preferences, please try again"
+        next_state = 2
+    else:
+        reply = "I think you would really like " + df["restaurantname"].to_string(index=False) + ", its located at  " + \
+                df["addr"].to_string(index=False) + ", " + df["postcode"].to_string(index=False) + \
+                " in the " + df["area"].to_string(index=False) + " and the phone number is " + \
+                df["phone"].to_string(index=False) + ". \n  Do you agree? If you keep finding me " \
                                     "suggesting the same restaurant, maybe try again and ask for something different."
-
-    return reply
+        next_state = 12
+    return reply, next_state
 
 
 def extract_preferences(utterance):
     tokenized = word_tokenize(utterance)  # sentence broken into words
+    # no_stopwords = tokenized
     no_stopwords = [word for word in tokenized if not word in stopwords.words()]  # remove stopwords for this part
     food, area, pricerange = "", "", ""
 
@@ -152,7 +157,8 @@ def lookup_restaurants(state):
     state: dictionary containing the preferences, is of type dict()
     Returns: one restaurant and alternatives, both of type pd.DataFrame"""
     # Load database
-    res_df = pd.read_csv("restaurant_info.csv")
+
+    res_df = pd.read_csv('restaurant_info.csv')
 
     # If no preference is expressed, any pricerange will do
     if state["pricerange"] == "dontcare":
@@ -190,32 +196,36 @@ def dialog_management(state, utterance, preferences):
     next_state = 0
     preference_list = preferences
 
-    file = open('B:/Documents/Master AI/INFOMAIR/venv/src/saved models/decision/decision_model.pkl', 'rb')
-    model = pickle.load(file)
+    # load the model and the vectorier
+    model = load_model('saved models/feedforward')
+    file = open('saved models/vectorizer/vectorizer.pkl', 'rb')
+    vectorizer = pickle.load(file)
+    file.close()
 
-    vectorizer = CountVectorizer()
-    bow_wrds = vectorizer.fit_transform([processed_utterance]).toarray()
-    bow_wrds = pad_sequences(bow_wrds, maxlen=767, value=0)
+    bow_wrds = vectorizer.transform([processed_utterance]).toarray()
+    bow_wrds = pad_sequences(bow_wrds, maxlen=704, value=0)
     utterance_class = dictionary[np.argmax(model.predict(bow_wrds))]
     print("Utterance class", utterance_class)
     print("State", state)
 
     if state == 2:  # Zeusbot finished greeting the guest and we get their first reply
-        utterance_class = "inform"
+
         if utterance_class == "inform":
             preference_list = extract_preferences(utterance)
+            print(preference_list)
             reply = "So you want a " + preference_list[2] + " restaurant that offers " + preference_list[0] + \
-                    " food in the " + preference_list[1] + " part? \n "
+                    " food in the " + preference_list[1] + " ? \n "
             next_state = 6
     # generate and assign reply
 
     elif state == 6:  # Zeus bot asked if they got their preferences right and we get their reply
-        utterance_class = "ack"
+
         if utterance_class == "deny" or utterance_class == "negate":
             preference_list = ["", "", ""]
             reply = "I am so sorry we could not help you, I am going to reboot my menory and let's try again :) \n " \
-                    "maybe it helps if you slightly rephrase your sentences because I am silly."
-            exit()
+                    "maybe it helps if you slightly rephrase your sentences because I am silly. \n Welcome to Zeus bot " \
+                    "let me help you suggest a restaurant, do you have any preferences?"
+            next_state = 1
         if utterance_class == "affirm" or utterance_class == "ack":
             preference_list = [preferences[0], preferences[1], preferences[2]]
             if preferences[0] == "":
@@ -229,13 +239,10 @@ def dialog_management(state, utterance, preferences):
                 next_state = 25
             else:
                 preferences_dict = {"food": preferences[0], "area": preferences[1], "pricerange": preferences[2]}
-                # print("Dict", preferences_dict)
                 restaurant, alternatives = lookup_restaurants(preferences_dict)
                 # print(restaurant, alternatives)
 
-                reply = generate_reply(restaurant)
-
-                next_state = 12
+                reply, next_state = generate_reply(restaurant)
 
     # user still needs to specify some food  preference
     elif state == 23:
@@ -244,8 +251,8 @@ def dialog_management(state, utterance, preferences):
         else:
             food_pref = extract_preferences(utterance)[0]
         preference_list = [food_pref, preferences[1], preferences[2]]
-        reply = "Hi, so you want a " + preference_list[2] + " restaurant that offers " + preference_list[0] + \
-                " food in the " + preference_list[1] + " part? \n "
+        reply = "So you want a " + preference_list[2] + " restaurant that offers " + preference_list[0] + \
+                " food in the " + preference_list[1] + " ? \n "
         next_state = 6
 
     # user still needs to specify some area preference
@@ -256,8 +263,8 @@ def dialog_management(state, utterance, preferences):
             area_pref = extract_preferences(utterance)[1]
         preference_list = [preferences[0], area_pref, preferences[2]]
         print(preference_list)
-        reply = "Hi, so you want a " + preference_list[2] + " restaurant that offers " + preference_list[0] + \
-                " food in the " + preference_list[1] + " part? \n "
+        reply = "So you want a " + preference_list[2] + " restaurant that offers " + preference_list[0] + \
+                " food in the " + preference_list[1] + " ? \n "
         next_state = 6
 
     # user still needs to specify some pricerange preference
@@ -267,8 +274,8 @@ def dialog_management(state, utterance, preferences):
         else:
             pricerange_pref = extract_preferences(utterance)[2]
         preference_list = [preferences[0], preferences[1], pricerange_pref]
-        reply = "Hi, so you want a " + preference_list[2] + " restaurant that offers " + preference_list[0] + \
-                " food in the " + preference_list[1] + " part? \n "
+        reply = "So you want a " + preference_list[2] + " restaurant that offers " + preference_list[0] + \
+                " food in the " + preference_list[1] + " ? \n "
         next_state = 6
 
     elif state == 12:  # Zeusbot suggested a restaurant and we get their reply
@@ -280,10 +287,11 @@ def dialog_management(state, utterance, preferences):
             preferences_dict = {"food": food, "area": area, "pricerange": pricerange}
             restaurant, alternatives = lookup_restaurants(preferences_dict)
 
-            if alternatives.empty:
+            # if there are no alternative suggestions, restart
+            if len(alternatives.index) == 0:
                 reply = "I am sorry but there are no alternatives. We can restart this chat, so please try something " \
                         "else"
-                next_state = 1
+                next_state = 2
 
             else:
                 reply = generate_reply(alternatives)
@@ -301,22 +309,23 @@ def dialog_management(state, utterance, preferences):
             next_state = 2
             preference_list = ["", "", ""]
 
-    return next_state, reply, preferences
+    return next_state, reply, preference_list
 
 
 if __name__ == "__main__":
-    df = pd.read_csv("B:/Documents/Master AI/INFOMAIR/venv/src/restaurant_info.csv")
-    df = df.drop_duplicates()
-    df = df.fillna("")
 
+    df = pd.read_csv('restaurant_info.csv')
+    df = df.drop_duplicates()
+    df = df.fillna('')
+
+    food_list = set(df['food'].tolist())
     area_list = set(df['area'].tolist())
     area_list = [area for area in area_list if str(area) != 'nan']
-
     pricerange_list = set(df['pricerange'].tolist())
-    food_list = set(df['food'].tolist())
+
     preferences = ["", "", ""]
 
-    # model = load_model("B:/Documents/Master AI/INFOMAIR/venv/src/saved models/feedforward")
+    model = load_model("saved models/feedforward")
 
     state = 2
     print("Welcome to Zeus bot, let me help you suggest a restaurant, do you have any preferences?")
