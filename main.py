@@ -77,6 +77,7 @@ def parse_match(match, property_list):
     Tries to find the closest match and chooses randomly in case of a tie.
 	word: word that was matched as food/area/pricerange
 	propertylist: list of possible properties, e.g. [north, south, ..] for area"""
+
     word = match.group(1)
 
     if word == "any":
@@ -103,16 +104,16 @@ def parse_match(match, property_list):
 
     return ""
 
-def extract_preferences(utterance, preferences):
+
+def extract_preferences(utterance, preferences=["", "", ""]):
     """Takes in an utterance string that is expected to contain preferences for restaurant
     food type/area/pricerange, and returns all the preferences it can find.
     If a certain preference is not found, this is represented by the empty string.
-	  utterance:	string of utterance with preferences expected
-	  returns:	list, in the form [food, area, pricerange]"""
-  
-    food, area, pricerange = preferences[0], preferences[1], preferences[2]
-    tokenized = word_tokenize(utterance)  # sentence broken into words
-    # no_stopwords = tokenized
+	utterance:	string of utterance with preferences expected
+	returns:	list, in the form [food, area, pricerange]"""
+
+    food, area, price = preferences[0], preferences[1], preferences[2]
+    tokenized = word_tokenize(utterance) # sentence broken into words
     no_stopwords = [word for word in tokenized if not word in stopwords.words()]  # remove stopwords for this part
 
     # Plain lookup
@@ -124,59 +125,42 @@ def extract_preferences(utterance, preferences):
             area = word
 
         elif word in pricerange_list:
-            pricerange = word
+            price = word
 
+    # If the food was not in the list look for patterns
+    if not food and re.search(r"(\w+)(\sfood|\srestaurant)", utterance):
+        food = parse_match(re.search(r"(\w+)(\sfood|\srestaurant)",
+        utterance), food_list)
 
-    # If the food was not in the list
-    if not food:
-        match = re.search(r"(\w+)(\sfood|\srestaurant)", utterance)
+    # If the area was not in the list look for patterns
+    if not area and re.search(r"(\w+(?<!(ern)))((ern)*\sarea)", utterance):
+        area = parse_match(re.search(r"(\w+(?<!(ern)))((ern)*\sarea)",
+        utterance), area_list)
 
-        if match:
-            food = parse_match(match, food_list)
+    # If the pricerange was not in the list look for patterns
+    if not price and re.search(r"(\w+)(ly\spriced|\spricerange)", utterance):
+        price = parse_match(re.search(r"(\w+)(ly\spriced|\spricerange)",
+        utterance), pricerange_list)
 
-
-    # If the area was not in the list
-    if not area:
-        match = re.search(r"(\w+(?<!(ern)))((ern)*\sarea)", utterance)
-
-        if match:
-            area = parse_match(match, area_list)
-
-    # If the
-    if not pricerange:
-        match = re.search(r"(\w+)(ly\spriced|\spricerange)", utterance)
-
-        if match:
-            pricerange = parse_match(match, pricerange_list)
-
-    return [food, area, pricerange]
+    return [food, area, price]
 
 
 def lookup_restaurants(state):
     """Looks up restaurants from the restaurant_info.csv, based on the state
     state: dictionary containing the preferences, is of type dict()
     Returns: one restaurant and alternatives, both of type pd.DataFrame"""
-    # Load database
 
+    # Load database
     res_df = pd.read_csv('restaurant_info.csv')
 
     # If no preference is expressed, any pricerange will do
-    if state["pricerange"] == "dontcare":
-        price_cond = True
-    else:
-        price_cond = (res_df["pricerange"] == state["pricerange"]
-                      )
-    if state["area"] == "dontcare":
-        area_cond = True
-    else:
-        area_cond = (res_df["area"] == state["area"])
+    conds = {"food":True, "area":True, "pricerange":True}
+    for prop in state:
+        if state[prop] != "dontcare":
+            conds[prop] = (res_df[prop] == state[prop])
 
-    if state["food"] == "dontcare":
-        food_cond = True
-    else:
-        food_cond = (res_df["food"] == state["food"])
+    all_restaurants = res_df[conds["pricerange"] & conds["area"] & conds["food"]]
 
-    all_restaurants = res_df[price_cond & area_cond & food_cond]
     # If none are found, return an empty dataframe
     if all_restaurants.empty:
         return all_restaurants, all_restaurants
