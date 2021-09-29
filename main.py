@@ -26,7 +26,7 @@ dictionary = {
   9: "repeat",
   10: "reqalts",
   11: "reqmore", 
-  12: "request", 
+  12: "request",
   13: "restart", 
   14: "thankyou"
 }
@@ -50,6 +50,13 @@ def preprocess(sentence):
     return processed_sentence
 
 
+def ask_preferences(preferences):
+    reply = "We currently know that you want: \n food type: " + preferences[0] + "\n area: " + preferences[1] +\
+            " \n price range: " + preferences[2] + "\n Yes or no?"
+
+    return reply
+
+
 def generate_reply(df):
     # Bot couldnt find a restaurant so it starts over
     if df.values.size == 0:
@@ -65,11 +72,13 @@ def generate_reply(df):
     return reply, next_state
 
 
-def extract_preferences(utterance):
+def extract_preferences(utterance, preferences):
+
+    food, area, pricerange = preferences[0], preferences[1], preferences[2]
+    print(food, area, pricerange)
     tokenized = word_tokenize(utterance)  # sentence broken into words
     # no_stopwords = tokenized
     no_stopwords = [word for word in tokenized if not word in stopwords.words()]  # remove stopwords for this part
-    food, area, pricerange = "", "", ""
 
     # Plain lookup
     for word in no_stopwords:
@@ -191,6 +200,7 @@ def lookup_restaurants(state):
 
 
 def dialog_management(state, utterance, preferences):
+
     processed_utterance = preprocess(utterance)
     reply = ""
     next_state = 0
@@ -208,25 +218,39 @@ def dialog_management(state, utterance, preferences):
     print("Utterance class", utterance_class)
     print("State", state)
 
+    if utterance_class == "restart":
+        reply = "I'm sorry I couldn't help you this time, let's start over! :) \n Welcome to Zeus bot, " \
+                "let me help you suggest a restaurant, do you have any preferences?"
+        next_state = 2
+        preference_list = ["", "", ""]
+        return next_state, reply, preference_list
+
     if state == 2:  # Zeusbot finished greeting the guest and we get their first reply
 
         if utterance_class == "inform":
-            preference_list = extract_preferences(utterance)
+            preference_list = extract_preferences(utterance, preference_list)
             print(preference_list)
-            reply = "So you want a " + preference_list[2] + " restaurant that offers " + preference_list[0] + \
-                    " food in the " + preference_list[1] + " ? \n "
+
+            reply = ask_preferences(preference_list)
             next_state = 6
     # generate and assign reply
 
     elif state == 6:  # Zeus bot asked if they got their preferences right and we get their reply
 
         if utterance_class == "deny" or utterance_class == "negate":
-            preference_list = ["", "", ""]
-            reply = "I am so sorry we could not help you, I am going to reboot my menory and let's try again :) \n " \
-                    "maybe it helps if you slightly rephrase your sentences because I am silly. \n Welcome to Zeus bot " \
-                    "let me help you suggest a restaurant, do you have any preferences?"
-            next_state = 1
-        if utterance_class == "affirm" or utterance_class == "ack":
+            previous_preferences = preference_list
+            preference_list = extract_preferences(utterance, preference_list)
+            if preference_list == previous_preferences:
+                reply = "I am so sorry we could not help you, I am going to reboot my menory and let's try again :) \n " \
+                        "maybe it helps if you slightly rephrase your sentences because I am silly. \n Welcome to Zeus bot " \
+                        "let me help you suggest a restaurant, do you have any preferences?"
+                next_state = 2
+            else:
+                print(preference_list)
+                print("Are these correct?")
+                next_state = 6
+
+        elif utterance_class == "affirm" or utterance_class == "ack":
             preference_list = [preferences[0], preferences[1], preferences[2]]
             if preferences[0] == "":
                 reply = "You have not specified a preferred type of food, you can enter a type or dontcare"
@@ -243,13 +267,22 @@ def dialog_management(state, utterance, preferences):
                 # print(restaurant, alternatives)
 
                 reply, next_state = generate_reply(restaurant)
+        elif utterance_class == "inform":
+            preference_list = extract_preferences(utterance, preference_list)
+            # if preference_list.count("") < 3:
+            print(preference_list)
+            print("Are these correct?")
+            next_state = 6
+
+        else:
+            print("eoiruoibfo")
 
     # user still needs to specify some food  preference
     elif state == 23:
         if utterance == "dontcare" or utterance == "dont care":
             food_pref = "dontcare"
         else:
-            food_pref = extract_preferences(utterance)[0]
+            food_pref = extract_preferences(utterance, preference_list)[0]
         preference_list = [food_pref, preferences[1], preferences[2]]
         reply = "So you want a " + preference_list[2] + " restaurant that offers " + preference_list[0] + \
                 " food in the " + preference_list[1] + " ? \n "
@@ -257,12 +290,13 @@ def dialog_management(state, utterance, preferences):
 
     # user still needs to specify some area preference
     elif state == 24:
+        print("start of state 24i w", preference_list)
         if utterance == "dontcare" or utterance == "dont care":
             area_pref = "dontcare"
+            preference_list[1] = area_pref
         else:
-            area_pref = extract_preferences(utterance)[1]
-        preference_list = [preferences[0], area_pref, preferences[2]]
-        print(preference_list)
+            preference_list = extract_preferences(utterance, preference_list)
+        print("after update: ",preference_list)
         reply = "So you want a " + preference_list[2] + " restaurant that offers " + preference_list[0] + \
                 " food in the " + preference_list[1] + " ? \n "
         next_state = 6
@@ -272,7 +306,7 @@ def dialog_management(state, utterance, preferences):
         if utterance == "dontcare" or utterance == "dont care":
             pricerange_pref = "dontcare"
         else:
-            pricerange_pref = extract_preferences(utterance)[2]
+            pricerange_pref = extract_preferences(utterance, preference_list)[2]
         preference_list = [preferences[0], preferences[1], pricerange_pref]
         reply = "So you want a " + preference_list[2] + " restaurant that offers " + preference_list[0] + \
                 " food in the " + preference_list[1] + " ? \n "
@@ -283,9 +317,10 @@ def dialog_management(state, utterance, preferences):
             print("Thank you for choosing Zeus Bot, I hope you enjoy your dinner. Goodbye.")
             next_state = 17
             exit()
-        elif utterance_class == "reqalt":
-            preferences_dict = {"food": food, "area": area, "pricerange": pricerange}
+        elif utterance_class == "reqalt" or utterance_class == "negate" or utterance_class == "deny":
+            preferences_dict = {"food": preference_list[0], "area": preference_list[1], "pricerange": preference_list[2]}
             restaurant, alternatives = lookup_restaurants(preferences_dict)
+            #STill need to finish this
 
             # if there are no alternative suggestions, restart
             if len(alternatives.index) == 0:
@@ -297,17 +332,17 @@ def dialog_management(state, utterance, preferences):
                 reply = generate_reply(alternatives)
                 next_state = 12
 
-        elif utterance_class == "deny" or utterance_class == "negate":
+        else:
             reply = "I'm sorry I couldn't help you this time, let's start over! :) \n Welcome to Zeus bot, " \
                     "let me help you suggest a restaurant, do you have any preferences?"
-            next_state = 1
-            preference_list = ["", "", ""]
-
-        else:
-            reply = "I'm sorry but I don't understand, let's start over \n Welcome to Zeus bot, let me help you " \
-                    "suggest a restaurant, do you have any preferences?"
             next_state = 2
             preference_list = ["", "", ""]
+
+    else:
+        reply = "I'm sorry but I don't understand, let's start over \n Welcome to Zeus bot, let me help you " \
+                "suggest a restaurant, do you have any preferences?"
+        next_state = 2
+        preference_list = ["", "", ""]
 
     return next_state, reply, preference_list
 
