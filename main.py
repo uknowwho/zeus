@@ -1,9 +1,12 @@
+import re
+import sys
+
 import pandas as pd
+import pyttsx3
 import numpy as np
 import pickle
 import matplotlib as plt
 import nltk
-import re
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
@@ -14,20 +17,20 @@ from keras.preprocessing.sequence import pad_sequences
 # nltk.download('stopwords')
 
 dictionary = {
-  0: "ack", 
-  1: "affirm", 
+  0: "ack",
+  1: "affirm",
   2: "bye",
   3: "confirm",
   4: "deny",
   5: "hello",
-  6: "inform", 
-  7: "negate", 
+  6: "inform",
+  7: "negate",
   8: "null",
   9: "repeat",
   10: "reqalts",
-  11: "reqmore", 
+  11: "reqmore",
   12: "request",
-  13: "restart", 
+  13: "restart",
   14: "thankyou"
 }
 
@@ -323,15 +326,19 @@ def dialog_management(state, utterance, preferences):
 
 
 if __name__ == "__main__":
+    t2s = False
+    if "--t2s" in sys.argv:
+        t2s = True
+        engine = pyttsx3.init()
+
 
     df = pd.read_csv('restaurant_info.csv')
     df = df.drop_duplicates()
     df = df.fillna('')
 
-    food_list = set(df['food'].tolist())
-    area_list = set(df['area'].tolist())
-    area_list = [area for area in area_list if str(area) != 'nan']
-    pricerange_list = set(df['pricerange'].tolist())
+    area_list = set(df['area'].dropna().tolist()) | {'center'}
+    pricerange_list = set(df['pricerange'].dropna().tolist())
+    food_list = set(df['food'].dropna().tolist()) | {'world', 'swedish', 'danish'}
 
     preferences = ["", "", ""]
 
@@ -339,10 +346,20 @@ if __name__ == "__main__":
 
     state = 2
     print("Welcome to Zeus bot, let me help you suggest a restaurant, do you have any preferences?")
+    if t2s:
+        engine.say("Welcome to Zeus bot, let me help you suggest a restaurant, do you have any preferences?")
+        engine.runAndWait()
+
+
     while True:
 
         user_input = input().lower()
         if user_input == "quit":
             break
         state, reply, preferences = dialog_management(state, user_input, preferences)
+
         print(reply)
+        if t2s:
+            engine.say(reply)
+            engine.runAndWait()
+
