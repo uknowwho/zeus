@@ -63,7 +63,7 @@ def generate_reply(df):
         reply = "I am sorry, I could not find a restaurant to match your preferences, please try again"
         next_state = 2
     else:
-        reply = "I think you would really like " + df["restaurantname"].to_string(index=False) + ", its located at  " + \
+        reply = "I think you would really like " + df["restaurantname"].to_string(index=False) + ", its located at " + \
                 df["addr"].to_string(index=False) + ", " + df["postcode"].to_string(index=False) + \
                 " in the " + df["area"].to_string(index=False) + " and the phone number is " + \
                 df["phone"].to_string(index=False) + ". \n  Do you agree? If you keep finding me " \
@@ -145,13 +145,91 @@ def extract_preferences(utterance, preferences=["", "", ""]):
     return [food, area, price]
 
 
+def get_bonus_preferences(utterance, bonus_preferences):
+    good_food, busy, longstay, romantic, children = bonus_preferences
+    if "good" in utterance and "food" in utterance:
+        good_food = True
+    if "busy" in utterance and not "not" in utterance:
+        busy = True
+    if "busy" in utterance and "not" in utterance:
+        busy = False
+    if "long stay" in utterance and not "not" in utterance:
+        longstay = True
+    if "romantic" in utterance and not "not" in utterance:
+        romantic = True
+    if "children" in utterance and not "not" in utterance:
+        children = True
+    bonus_preferences = good_food, busy, longstay, romantic, children
+    print("get_bonus_preferences", bonus_preferences)
+    return bonus_preferences
+
+
+def lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences):
+    """
+
+    :param restaurant: a dataframe with the first suggestion
+    :param alternatives: A dataframe with the other alternatives if they exists
+    :param bonus_preferences: A list with the extra preferences the user gave
+    :return: A dataframe (could be empty) that satisfies the preferences
+    """
+    "bonus preferences is  good food,busy,long stay,romantic,children"
+
+    print(restaurant)
+    print(alternatives)
+    everything = [restaurant, alternatives]
+    all_restaurants = pd.concat(everything)
+    print(all_restaurants)
+    print("it printed all restaurants, fine till here")
+    # good food
+    if bonus_preferences[0]:
+        all_restaurants = all_restaurants[all_restaurants.good_food == True]
+    if not bonus_preferences[0]:
+        all_restaurants = all_restaurants[all_restaurants.good_food == False]
+
+    # busy
+    if bonus_preferences[1]:
+        all_restaurants = all_restaurants[all_restaurants.busy == True]
+
+    if not bonus_preferences[1]:
+        all_restaurants = all_restaurants[all_restaurants.busy == False]
+
+    # long stay
+    if bonus_preferences[2]:
+        all_restaurants = all_restaurants[all_restaurants.longstay == True]
+    if not bonus_preferences[2]:
+        all_restaurants = all_restaurants[all_restaurants.longstay == False]
+
+    # romantic
+
+    if bonus_preferences[3]:
+        all_restaurants = all_restaurants[all_restaurants.good_food == True]
+    if not bonus_preferences[3]:
+        all_restaurants = all_restaurants[all_restaurants.good_food == False]
+
+    # children
+    if bonus_preferences[4]:
+        all_restaurants = all_restaurants[all_restaurants.good_food == True]
+    if not bonus_preferences[4]:
+        all_restaurants = all_restaurants[all_restaurants.good_food == False]
+
+    # Randomly sample one from the restaurants
+    if all_restaurants.values.size == 0:
+
+        restaurant = all_restaurants
+
+    else:
+        restaurant = all_restaurants.sample(1)
+
+    return restaurant
+
+
 def lookup_restaurants(state):
-    """Looks up restaurants from the restaurant_info.csv, based on the state
+    """Looks up restaurants from the updated_restaurant_info.csv, based on the state
     state: dictionary containing the preferences, is of type dict()
     Returns: one restaurant and alternatives, both of type pd.DataFrame"""
 
     # Load database
-    res_df = pd.read_csv('restaurant_info.csv')
+    res_df = pd.read_csv('updated_restaurant_info.csv')
 
     # If no preference is expressed, any pricerange will do
     conds = {"food":True, "area":True, "pricerange":True}
@@ -174,7 +252,7 @@ def lookup_restaurants(state):
     return restaurant, alternatives
 
 
-def dialog_management(state, utterance, preferences):
+def dialog_management(state, utterance, preferences, bonus_preferences):
 
     processed_utterance = preprocess(utterance)
     reply = ""
@@ -193,19 +271,47 @@ def dialog_management(state, utterance, preferences):
     print("Utterance class", utterance_class)
     print("State", state)
 
-    if utterance_class == "restart":
+    if state == 99 and (utterance_class == "negate" or utterance_class == "deny"):
+        next_state = 12
+        preferences_dict = {"food": preferences[0], "area": preferences[1], "pricerange": preferences[2]}
+        restaurant, alternatives = lookup_restaurants(preferences_dict)
+        reply = generate_reply(restaurant)
+        return next_state, reply, preference_list, bonus_preferences
+
+    elif state == 99: #the user sends bonus preferences
+        print(bonus_preferences)
+        bonus_preferences = get_bonus_preferences(utterance, bonus_preferences)
+        print("bonus preferences after extratcion", bonus_preferences)
+        preferences_dict = {"food": preference_list[0], "area": preference_list[1], "pricerange": preference_list[2]}
+        restaurant, alternatives = lookup_restaurants(preferences_dict)
+        print("Before extra preferences:", restaurant)
+        restaurant= lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences)
+        print("After extra references:", restaurant)
+        if restaurant.values.size == 0:
+            reply = "Sorry, I cant find anything that matches your preferences, you can try again without bonus preferences \n :( "
+            next_state = 2
+            bonus_preferences = ["", "", "", "", ""]
+        else:
+            reply = generate_reply(restaurant)
+            next_state = 12
+        return next_state, reply, preference_list, bonus_preferences
+
+    elif utterance_class == "restart":
         reply = "I'm sorry I couldn't help you this time, let's start over! :) \n Welcome to Zeus bot, " \
                 "let me help you suggest a restaurant, do you have any preferences?"
         next_state = 2
         preference_list = ["", "", ""]
-        return next_state, reply, preference_list
+        return next_state, reply, preference_list, bonus_preferences
 
-    if state == 2:  # Zeusbot finished greeting the guest and we get their first reply
+    elif state == 2:  # Zeusbot finished greeting the guest and we get their first reply
 
         if utterance_class == "inform":
             preference_list = extract_preferences(utterance, preference_list)
             print(preference_list)
 
+            reply = ask_preferences(preference_list)
+            next_state = 6
+        if utterance_class == "affirm":
             reply = ask_preferences(preference_list)
             next_state = 6
     # generate and assign reply
@@ -237,11 +343,14 @@ def dialog_management(state, utterance, preferences):
                 reply = "You have not specified a preferred price range,  you can enter a price or type dontcare"
                 next_state = 25
             else:
-                preferences_dict = {"food": preferences[0], "area": preferences[1], "pricerange": preferences[2]}
-                restaurant, alternatives = lookup_restaurants(preferences_dict)
-                # print(restaurant, alternatives)
+                next_state = 99
+                reply = "Do you have any other preferences, options are: \n good food, busy, long stay, romantic, children"
+                # return next_state, reply, preference_list, bonus_preferences
+                #
+                # preferences_dict = {"food": preferences[0], "area": preferences[1], "pricerange": preferences[2]}
+                # restaurant, alternatives = lookup_restaurants(preferences_dict)
+                # # print(restaurant, alternatives)
 
-                reply, next_state = generate_reply(restaurant)
         elif utterance_class == "inform":
             preference_list = extract_preferences(utterance, preference_list)
             # if preference_list.count("") < 3:
@@ -319,12 +428,12 @@ def dialog_management(state, utterance, preferences):
         next_state = 2
         preference_list = ["", "", ""]
 
-    return next_state, reply, preference_list
+    return next_state, reply, preference_list, bonus_preferences
 
 
 if __name__ == "__main__":
 
-    df = pd.read_csv('restaurant_info.csv')
+    df = pd.read_csv('updated_restaurant_info.csv')
     df = df.drop_duplicates()
     df = df.fillna('')
 
@@ -334,6 +443,7 @@ if __name__ == "__main__":
     pricerange_list = set(df['pricerange'].tolist())
 
     preferences = ["", "", ""]
+    bonus_preferences = ["", "", "", "", ""]
 
     model = load_model("saved models/feedforward")
 
@@ -344,5 +454,5 @@ if __name__ == "__main__":
         user_input = input().lower()
         if user_input == "quit":
             break
-        state, reply, preferences = dialog_management(state, user_input, preferences)
+        state, reply, preferences, bonus_preferences = dialog_management(state, user_input, preferences, bonus_preferences)
         print(reply)
