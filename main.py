@@ -10,8 +10,11 @@ from nltk.tokenize import word_tokenize
 from keras.models import load_model
 from keras.preprocessing.sequence import pad_sequences
 
+# TODO: insert a check for whether these are downloaded already,
+# so that others can also smoothly run the code
 # nltk.download('punkt')
 # nltk.download('stopwords')
+
 
 dictionary = {
   0: "ack", 
@@ -51,6 +54,9 @@ def preprocess(sentence):
 
 
 def ask_preferences(preferences):
+    """Generates a prompt that expresses which preferences the program already knows for the user to confirm.
+    	preferences:	list with preferences of shape [food, area, pricerange]
+	returns:	confirmation message as string"""
     reply = "We currently know that you want: \n food type: " + preferences[0] + "\n area: " + preferences[1] +\
             " \n price range: " + preferences[2] + "\n Yes or no?"
 
@@ -73,10 +79,11 @@ def generate_reply(df):
 
 
 def parse_match(match, property_list):
-    """Return the closest matching preference word for a given food/area/pricerange word.
+    """Finds the closest matching preference word for a given food/area/pricerange word.
     Tries to find the closest match and chooses randomly in case of a tie.
-	word: word that was matched as food/area/pricerange
-	propertylist: list of possible properties, e.g. [north, south, ..] for area"""
+	word: 		word that was matched as food/area/pricerange
+	propertylist:	list of possible properties, e.g. [north, south, ..] for area
+	returns		closest matching preference word as string"""
 
     word = match.group(1)
 
@@ -99,7 +106,7 @@ def parse_match(match, property_list):
     if one_dist != []:
         return np.random.choice(one_dist)
 
-    elif two_dist != []:
+    if two_dist != []:
         return np.random.choice(two_dist)
 
     return ""
@@ -129,18 +136,24 @@ def extract_preferences(utterance, preferences=["", "", ""]):
 
     # If the food was not in the list look for patterns
     if not food and re.search(r"(\w+)(\sfood|\srestaurant)", utterance):
-        food = parse_match(re.search(r"(\w+)(\sfood|\srestaurant)",
-        utterance), food_list)
+        food = parse_match(
+		re.search(r"(\w+)(\sfood|\srestaurant)", utterance),
+		food_list
+	)
 
     # If the area was not in the list look for patterns
     if not area and re.search(r"(\w+(?<!(ern)))((ern)*\sarea)", utterance):
-        area = parse_match(re.search(r"(\w+(?<!(ern)))((ern)*\sarea)",
-        utterance), area_list)
+        area = parse_match(
+		re.search(r"(\w+(?<!(ern)))((ern)*\sarea)", utterance),
+		area_list
+	)
 
     # If the pricerange was not in the list look for patterns
     if not price and re.search(r"(\w+)(ly\spriced|\spricerange)", utterance):
-        price = parse_match(re.search(r"(\w+)(ly\spriced|\spricerange)",
-        utterance), pricerange_list)
+        price = parse_match(
+		re.search(r"(\w+)(ly\spriced|\spricerange)", utterance),
+		pricerange_list
+	)
 
     return [food, area, price]
 
@@ -165,21 +178,21 @@ def get_bonus_preferences(utterance, bonus_preferences):
 
 
 def lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences):
-    """
+    """Looks up restaurants based on bonus preferences.
+    Bonus preferences are: good food,busy,long stay,romantic,children
+	restaurant:		dataframe with the first suggestion
+    	alternatives:		dataframe with the other alternatives if they exists
+    	bonus_preferences: 	list with the extra preferences the user gave
+    	returns:		a dataframe (could be empty) that satisfies the preferences"""
 
-    :param restaurant: a dataframe with the first suggestion
-    :param alternatives: A dataframe with the other alternatives if they exists
-    :param bonus_preferences: A list with the extra preferences the user gave
-    :return: A dataframe (could be empty) that satisfies the preferences
-    """
-    "bonus preferences is  good food,busy,long stay,romantic,children"
-
+    # TODO: remove debug print statements
     print(restaurant)
     print(alternatives)
     everything = [restaurant, alternatives]
     all_restaurants = pd.concat(everything)
     print(all_restaurants)
-    print("it printed all restaurants, fine till here")
+    print("it printed all restaurants, fine till here") 
+	
     # good food
     if bonus_preferences[0]:
         all_restaurants = all_restaurants[all_restaurants.good_food == True]
@@ -214,9 +227,7 @@ def lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences):
 
     # Randomly sample one from the restaurants
     if all_restaurants.values.size == 0:
-
         restaurant = all_restaurants
-
     else:
         restaurant = all_restaurants.sample(1)
 
@@ -225,8 +236,8 @@ def lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences):
 
 def lookup_restaurants(state):
     """Looks up restaurants from the updated_restaurant_info.csv, based on the state
-    state: dictionary containing the preferences, is of type dict()
-    Returns: one restaurant and alternatives, both of type pd.DataFrame"""
+    	state: dictionary containing the preferences, is of type dict()
+    	returns: one restaurant and alternatives, both of type pd.DataFrame"""
 
     # Load database
     res_df = pd.read_csv('updated_restaurant_info.csv')
@@ -253,6 +264,12 @@ def lookup_restaurants(state):
 
 
 def dialog_management(state, utterance, preferences, bonus_preferences):
+    """Handles most of the dialog, the most important function that is repeatedly called 
+    in the main program.
+    	state:			state number as integer, see the diagram
+	utterance:		user input as string
+	preferences:		preferences known as of now, list
+	bonus_preferences:	bonus preferences known as of now, list"""
 
     processed_utterance = preprocess(utterance)
     reply = ""
