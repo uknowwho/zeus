@@ -64,10 +64,15 @@ def ask_preferences(preferences):
 
 
 def generate_reply(df):
+    """"Generates a reply based on a specific restaurant.
+    	df:		information about a specific restaurant, stored in a dataframe
+	returns:	recommendation or failure reply, string"""
+
     # Bot couldnt find a restaurant so it starts over
     if df.values.size == 0:
         reply = "I am sorry, I could not find a restaurant to match your preferences, please try again"
         next_state = 2
+    # A valid restaurant has been passed in, so it is recommended to the user
     else:
         reply = "I think you would really like " + df["restaurantname"].to_string(index=False) + ", its located at " + \
                 df["addr"].to_string(index=False) + ", " + df["postcode"].to_string(index=False) + \
