@@ -75,6 +75,67 @@ def generate_reply(df):
     return reply, next_state
 
 
+def overlap(keywords, # set of words
+            sentence  # sentence as string
+            ):
+    """Check whether any of the keywords are in the sentence"""
+    return len(keywords.intersection(set(sentence.split()))) >= 1
+
+
+def rule_based(sent):
+    split_sent = sent.split()
+
+    if overlap({"looking", "searching", "want", "cheap", "north", "east",
+                "south", "west", "priced", "find", "any", "italian", "moderate",
+                "spanish", "matter"}, sent):
+        return "inform"
+
+    elif overlap({"what", "where", "when", "whats", "may", "could", "address",
+                  "type", "phone", "code"}, sent):
+        return "request"
+
+    elif overlap({"thanks", "thank"}, sent):
+        return "thankyou"
+
+    elif overlap({"another", "other", "else"}, sent) or sent.startswith("how about"):
+        return "reqalt"
+
+    elif overlap({"um", "hm", "unintelligible", "noise"}, sent):
+        return "null"
+
+    elif overlap({"yes", "right", "yeah", "correct", "ye"}, sent):
+        return "affirm"
+
+    elif "bye" in sent:
+        return "bye"
+
+    elif sent.startswith("is it"):
+        return "confirm"
+
+    elif "hello" in sent or "hi" in split_sent:
+        return "hello"
+
+    elif "no" in split_sent:
+        return "negate"
+
+    elif "dont" in split_sent:
+        return "deny"
+
+    elif "repeat" in sent:
+        return "repeat"
+
+    elif "okay" in split_sent:
+        return "ack"
+
+    elif overlap({"restart", "start"}, sent):
+        return "restart"
+
+    elif "more" in split_sent:
+        return "reqmore"
+
+    return "inform"
+
+
 def parse_match(match, property_list):
     """Return the closest matching preference word for a given food/area/pricerange word.
     Tries to find the closest match and chooses randomly in case of a tie.
@@ -177,22 +238,28 @@ def lookup_restaurants(state):
     return restaurant, alternatives
 
 
-def dialog_management(state, utterance, preferences):
+def dialog_management(state, utterance, preferences, baseline=False):
 
     processed_utterance = preprocess(utterance)
     reply = ""
     next_state = 0
     preference_list = preferences
 
-    # load the model and the vectorier
-    model = load_model('saved models/feedforward')
-    file = open('saved models/vectorizer/vectorizer.pkl', 'rb')
-    vectorizer = pickle.load(file)
-    file.close()
+    if not baseline:
+        # load the model and the vectorier
+        model = load_model('saved models/feedforward')
+        file = open('saved models/vectorizer/vectorizer.pkl', 'rb')
+        vectorizer = pickle.load(file)
+        file.close()
 
-    bow_wrds = vectorizer.transform([processed_utterance]).toarray()
-    bow_wrds = pad_sequences(bow_wrds, maxlen=704, value=0)
-    utterance_class = dictionary[np.argmax(model.predict(bow_wrds))]
+        bow_wrds = vectorizer.transform([processed_utterance]).toarray()
+        bow_wrds = pad_sequences(bow_wrds, maxlen=704, value=0)
+        utterance_class = dictionary[np.argmax(model.predict(bow_wrds))]
+
+    else:
+        print(processed_utterance)
+        utterance_class = rule_based(processed_utterance)
+
     print("Utterance class", utterance_class)
     print("State", state)
 
@@ -327,9 +394,13 @@ def dialog_management(state, utterance, preferences):
 
 if __name__ == "__main__":
     t2s = False
+    baseline = False
     if "--t2s" in sys.argv:
         t2s = True
         engine = pyttsx3.init()
+
+    if "--baseline" in sys.argv:
+        baseline = True
 
 
     df = pd.read_csv('restaurant_info.csv')
@@ -356,7 +427,7 @@ if __name__ == "__main__":
         user_input = input().lower()
         if user_input == "quit":
             break
-        state, reply, preferences = dialog_management(state, user_input, preferences)
+        state, reply, preferences = dialog_management(state, user_input, preferences, baseline=baseline)
 
         print(reply)
         if t2s:
