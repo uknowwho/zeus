@@ -1,9 +1,12 @@
+import re
+import sys
+
 import pandas as pd
+import pyttsx3
 import numpy as np
 import pickle
 import matplotlib as plt
 import nltk
-import re
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
@@ -17,20 +20,20 @@ from keras.preprocessing.sequence import pad_sequences
 
 
 dictionary = {
-  0: "ack", 
-  1: "affirm", 
+  0: "ack",
+  1: "affirm",
   2: "bye",
   3: "confirm",
   4: "deny",
   5: "hello",
-  6: "inform", 
-  7: "negate", 
+  6: "inform",
+  7: "negate",
   8: "null",
   9: "repeat",
   10: "reqalts",
-  11: "reqmore", 
+  11: "reqmore",
   12: "request",
-  13: "restart", 
+  13: "restart",
   14: "thankyou"
 }
 
@@ -81,6 +84,67 @@ def generate_reply(df):
                                     "suggesting the same restaurant, maybe try again and ask for something different."
         next_state = 12
     return reply, next_state
+
+
+def overlap(keywords, # set of words
+            sentence  # sentence as string
+            ):
+    """Check whether any of the keywords are in the sentence"""
+    return len(keywords.intersection(set(sentence.split()))) >= 1
+
+
+def rule_based(sent):
+    split_sent = sent.split()
+
+    if overlap({"looking", "searching", "want", "cheap", "north", "east",
+                "south", "west", "priced", "find", "any", "italian", "moderate",
+                "spanish", "matter"}, sent):
+        return "inform"
+
+    elif overlap({"what", "where", "when", "whats", "may", "could", "address",
+                  "type", "phone", "code"}, sent):
+        return "request"
+
+    elif overlap({"thanks", "thank"}, sent):
+        return "thankyou"
+
+    elif overlap({"another", "other", "else"}, sent) or sent.startswith("how about"):
+        return "reqalt"
+
+    elif overlap({"um", "hm", "unintelligible", "noise"}, sent):
+        return "null"
+
+    elif overlap({"yes", "right", "yeah", "correct", "ye"}, sent):
+        return "affirm"
+
+    elif "bye" in sent:
+        return "bye"
+
+    elif sent.startswith("is it"):
+        return "confirm"
+
+    elif "hello" in sent or "hi" in split_sent:
+        return "hello"
+
+    elif "no" in split_sent:
+        return "negate"
+
+    elif "dont" in split_sent:
+        return "deny"
+
+    elif "repeat" in sent:
+        return "repeat"
+
+    elif "okay" in split_sent:
+        return "ack"
+
+    elif overlap({"restart", "start"}, sent):
+        return "restart"
+
+    elif "more" in split_sent:
+        return "reqmore"
+
+    return "inform"
 
 
 def parse_match(match, property_list):
@@ -276,20 +340,27 @@ def dialog_management(state, utterance, preferences, bonus_preferences):
 	preferences:		preferences known as of now, list
 	bonus_preferences:	bonus preferences known as of now, list"""
 
+
     processed_utterance = preprocess(utterance)
     reply = ""
     next_state = 0
     preference_list = preferences
 
-    # load the model and the vectorier
-    model = load_model('saved models/feedforward')
-    file = open('saved models/vectorizer/vectorizer.pkl', 'rb')
-    vectorizer = pickle.load(file)
-    file.close()
+    if not baseline:
+        # load the model and the vectorier
+        model = load_model('saved models/feedforward')
+        file = open('saved models/vectorizer/vectorizer.pkl', 'rb')
+        vectorizer = pickle.load(file)
+        file.close()
 
-    bow_wrds = vectorizer.transform([processed_utterance]).toarray()
-    bow_wrds = pad_sequences(bow_wrds, maxlen=704, value=0)
-    utterance_class = dictionary[np.argmax(model.predict(bow_wrds))]
+        bow_wrds = vectorizer.transform([processed_utterance]).toarray()
+        bow_wrds = pad_sequences(bow_wrds, maxlen=704, value=0)
+        utterance_class = dictionary[np.argmax(model.predict(bow_wrds))]
+
+    else:
+        print(processed_utterance)
+        utterance_class = rule_based(processed_utterance)
+
     print("Utterance class", utterance_class)
     print("State", state)
 
@@ -454,15 +525,23 @@ def dialog_management(state, utterance, preferences, bonus_preferences):
 
 
 if __name__ == "__main__":
+    t2s = False
+    baseline = False
+    if "--t2s" in sys.argv:
+        t2s = True
+        engine = pyttsx3.init()
+
+    if "--baseline" in sys.argv:
+        baseline = True
+
 
     df = pd.read_csv('updated_restaurant_info.csv')
     df = df.drop_duplicates()
     df = df.fillna('')
 
-    food_list = set(df['food'].tolist())
-    area_list = set(df['area'].tolist())
-    area_list = [area for area in area_list if str(area) != 'nan']
-    pricerange_list = set(df['pricerange'].tolist())
+    area_list = set(df['area'].dropna().tolist()) | {'center'}
+    pricerange_list = set(df['pricerange'].dropna().tolist())
+    food_list = set(df['food'].dropna().tolist()) | {'world', 'swedish', 'danish'}
 
     preferences = ["", "", ""]
     bonus_preferences = ["", "", "", "", ""]
@@ -471,10 +550,21 @@ if __name__ == "__main__":
 
     state = 2
     print("Welcome to Zeus bot, let me help you suggest a restaurant, do you have any preferences?")
+    if t2s:
+        engine.say("Welcome to Zeus bot, let me help you suggest a restaurant, do you have any preferences?")
+        engine.runAndWait()
+
+
     while True:
 
         user_input = input().lower()
         if user_input == "quit":
             break
+
         state, reply, preferences, bonus_preferences = dialog_management(state, user_input, preferences, bonus_preferences)
+
         print(reply)
+        if t2s:
+            engine.say(reply)
+            engine.runAndWait()
+
