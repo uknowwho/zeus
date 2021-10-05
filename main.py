@@ -278,7 +278,7 @@ def lookup_restaurants(state):
     """
 
     # Load database
-    res_df = pd.read_csv('restaurant_info.csv')
+    res_df = pd.read_csv('updated_restaurant_info.csv')
 
     # If no preference is expressed, any value for the property will do
     conds = {"food":True, "area":True, "pricerange":True}
@@ -375,35 +375,6 @@ def lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences):
         restaurant = all_restaurants.sample(1)
 
     return restaurant
-
-
-def lookup_restaurants(state):
-    """Looks up restaurants from the updated_restaurant_info.csv, based on the state
-    	state: dictionary containing the preferences, is of type dict()
-    	returns: one restaurant and alternatives, both of type pd.DataFrame"""
-
-    # Load database
-    res_df = pd.read_csv('updated_restaurant_info.csv')
-
-    # If no preference is expressed, any pricerange will do
-    conds = {"food":True, "area":True, "pricerange":True}
-    for prop in state:
-        if state[prop] != "dontcare":
-            conds[prop] = (res_df[prop] == state[prop])
-
-    all_restaurants = res_df[conds["pricerange"] & conds["area"] & conds["food"]]
-
-    # If none are found, return an empty dataframe
-    if all_restaurants.empty:
-        return all_restaurants, all_restaurants
-
-    # Randomly sample one from the restaurants
-    restaurant = all_restaurants.sample(1)
-
-    # Alternatives are all found restaurants excluding the sampled one
-    alternatives = res_df.iloc[all_restaurants.index.difference(restaurant.index)]
-
-    return restaurant, alternatives
 
 
 def dialog_management(state, utterance, preferences, bonus_preferences):
