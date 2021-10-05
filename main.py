@@ -86,14 +86,24 @@ def generate_reply(df):
     return reply, next_state
 
 
-def overlap(keywords, # set of words
-            sentence  # sentence as string
-            ):
-    """Check whether any of the keywords are in the sentence"""
+
+def overlap(keywords, sentence):
+    """Check whether any of the keywords are in the sentence."""
     return len(keywords.intersection(set(sentence.split()))) >= 1
 
 
 def rule_based(sent):
+    """A rule based classification system. Decides based on presence of certain
+    commonly occurring strings. Categories are as the global "dictionary".
+
+    Args:
+        sent (str): The utterance of the user to be classified.
+
+    Returns:
+        The category (str): The category to which the utterance belongs to.
+    """
+
+    # Preprocess the sentence but not too much since we are directly matching.
     split_sent = sent.split()
 
     if overlap({"looking", "searching", "want", "cheap", "north", "east",
@@ -108,7 +118,8 @@ def rule_based(sent):
     elif overlap({"thanks", "thank"}, sent):
         return "thankyou"
 
-    elif overlap({"another", "other", "else"}, sent) or sent.startswith("how about"):
+    elif sent.startswith("how about") or overlap({"another", "other",
+        "else"}, sent):
         return "reqalt"
 
     elif overlap({"um", "hm", "unintelligible", "noise"}, sent):
@@ -144,21 +155,35 @@ def rule_based(sent):
     elif "more" in split_sent:
         return "reqmore"
 
+    # The default is the most occurring category in the dataset, inform.
     return "inform"
 
 
 def parse_match(match, property_list):
-    """Finds the closest matching preference word for a given food/area/pricerange word.
-    Tries to find the closest match and chooses randomly in case of a tie.
-	word: 		word that was matched as food/area/pricerange
-	propertylist:	list of possible properties, e.g. [north, south, ..] for area
-	returns		closest matching preference word as string"""
+    """Find the closest matching preference word for a given food/area/
+    pricerange word. Tries to find the closest match and chooses randomly in
+    case of a tie.
 
+    Args:
+	    match (regex obj): regex object based on regex in extract_preferences.
+            For more information on regex objects
+            see: https://docs.python.org/3/library/re.html
+	    property_list (list): list of possible properties based on the
+            database, e.g. [north, south, ..] for area
+
+    Returns:
+        Closest preference (str): The found word in the property_list that has
+            the closest edit_distance. Should be closer than 3.
+    """
+
+    # Select the first capturing group from the match
     word = match.group(1)
 
+    # If "any" is found the user has no preference
     if word == "any":
         return "dontcare"
 
+    # Find the closest matching preference and filter distances of 1 and 2
     one_dist = []
     two_dist = []
     for prop in property_list:
@@ -166,31 +191,48 @@ def parse_match(match, property_list):
         if distance == 0:
             return word
 
-        if distance == 1:
+        elif distance == 1:
             one_dist.append(prop)
 
-        if distance == 2:
+        elif distance == 2:
             two_dist.append(prop)
 
+    # The closer the better so first check distances of 1 then 2
+    # If there is a tie, select randomly
     if one_dist != []:
         return np.random.choice(one_dist)
 
-    if two_dist != []:
+    elif two_dist != []:
         return np.random.choice(two_dist)
 
+    # No preference found
     return ""
 
 
 def extract_preferences(utterance, preferences=["", "", ""]):
-    """Takes in an utterance string that is expected to contain preferences for restaurant
-    food type/area/pricerange, and returns all the preferences it can find.
-    If a certain preference is not found, this is represented by the empty string.
-	utterance:	string of utterance with preferences expected
-	returns:	list, in the form [food, area, pricerange]"""
+    """Takes in an utterance string that is expected to contain preferences for 
+    restaurant food type/area/pricerange, and returns all the preferences it can 
+    find based on regular expressions. If a certain preference is not found, 
+    this is represented by the empty string.
+
+    Args:
+	    utterance (str): The utterance that is expected to have preferences.
+	    preferences (list, optional): The preferences that are found so far,
+            in the form food, area, pricerange]. Defaults to no previously
+            found preferences.
+
+    Returns:
+        updated preferences (list): The preferences list with the newly found
+            values.
+    """
 
     food, area, price = preferences[0], preferences[1], preferences[2]
-    tokenized = word_tokenize(utterance) # sentence broken into words
-    no_stopwords = [word for word in tokenized if not word in stopwords.words()]  # remove stopwords for this part
+    # Break sentence into words
+    tokenized = word_tokenize(utterance)
+
+    # Remove stopwords for this part
+    no_stopwords = [w for w in tokenized if not w in stopwords.words()]
+
 
     # Plain lookup
     for word in no_stopwords:
@@ -205,26 +247,58 @@ def extract_preferences(utterance, preferences=["", "", ""]):
 
     # If the food was not in the list look for patterns
     if not food and re.search(r"(\w+)(\sfood|\srestaurant)", utterance):
-        food = parse_match(
-		re.search(r"(\w+)(\sfood|\srestaurant)", utterance),
-		food_list
-	)
+        food = parse_match(re.search(r"(\w+)(\sfood|\srestaurant)",
+        utterance), food_list)
 
     # If the area was not in the list look for patterns
+    # Filters adjectives like northern, southern
     if not area and re.search(r"(\w+(?<!(ern)))((ern)*\sarea)", utterance):
-        area = parse_match(
-		re.search(r"(\w+(?<!(ern)))((ern)*\sarea)", utterance),
-		area_list
-	)
+        area = parse_match(re.search(r"(\w+(?<!(ern)))((ern)*\sarea)",
+        utterance), area_list)
 
     # If the pricerange was not in the list look for patterns
+    # Filters adverbs like cheaply, moderately
     if not price and re.search(r"(\w+)(ly\spriced|\spricerange)", utterance):
-        price = parse_match(
-		re.search(r"(\w+)(ly\spriced|\spricerange)", utterance),
-		pricerange_list
-	)
+        price = parse_match(re.search(r"(\w+)(ly\spriced|\spricerange)",
+        utterance), pricerange_list)
 
     return [food, area, price]
+
+
+def lookup_restaurants(state):
+    """Looks up restaurants from the restaurant_info.csv, based on the state.
+
+    Args:
+        state (dict): The preferences namely the pricerange, area and food.
+
+    Returns:
+        restaurant (pd.DataFrame): A restaurant that matches the preferences.
+        alternatives (pd.DataFrame): A dataframe of all the other restaurants
+            that also match the criteria.
+    """
+
+    # Load database
+    res_df = pd.read_csv('restaurant_info.csv')
+
+    # If no preference is expressed, any value for the property will do
+    conds = {"food":True, "area":True, "pricerange":True}
+    for prop in state:
+        if state[prop] != "dontcare":
+            conds[prop] = (res_df[prop] == state[prop])
+
+    restaurants = res_df[conds["pricerange"] & conds["area"] & conds["food"]]
+
+    # If none are found, return an empty dataframe
+    if restaurants.empty:
+        return restaurants, restaurants
+
+    # Randomly sample one from the restaurants
+    restaurant = restaurants.sample(1)
+
+    # Alternatives are all found restaurants excluding the sampled one
+    alternatives = res_df.iloc[restaurants.index.difference(restaurant.index)]
+
+    return restaurant, alternatives
 
 
 def get_bonus_preferences(utterance, bonus_preferences):
