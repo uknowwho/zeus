@@ -13,11 +13,15 @@ from nltk.tokenize import word_tokenize
 from keras.models import load_model
 from keras.preprocessing.sequence import pad_sequences
 
-# TODO: insert a check for whether these are downloaded already,
-# so that others can also smoothly run the code
-# nltk.download('punkt')
-# nltk.download('stopwords')
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt')
 
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords')
 
 dictionary = {
     0: "ack",
@@ -51,7 +55,7 @@ def preprocess(sentence):
     for token in tokenized:
         stemmed_word = stemmer.stem(token)
         stemmed.append(stemmed_word)
-    # flatten list in stemmed))
+    # flatten list in stemmed
     processed_sentence = ' '.join(stem for stem in stemmed)
     return processed_sentence
 
@@ -78,10 +82,9 @@ def generate_reply(df):
         next_state = 2
     # A valid restaurant has been passed in, so it is recommended to the user
     else:
-        reply = f"I think you would really like {df['restaurantname'].to_string(index=False)}, its located at  \
-                {df['addr'].to_string(index=False)} {df['postcode'].to_string(index=False)}  \
+        reply = f"I think you would really like {df['restaurantname'].to_string(index=False)}, its located at {df['addr'].to_string(index=False)} {df['postcode'].to_string(index=False)}  \
                 in the  {df['area'].to_string(index=False)}  and the phone number is  \
-                {df['phone'].to_string(index=False)} \n  Do you agree? If you keep finding me  \
+                {df['phone'].to_string(index=False)} Do you agree? If you keep finding me  \
                 suggesting the same restaurant, maybe try again and ask for something different."
         next_state = 12
     return reply, next_state
@@ -182,7 +185,7 @@ def parse_match(match, property_list):
     return ""
 
 
-def extract_preferences(utterance, preferences=["", "", ""]):
+def extract_preferences(utterance, preferences):
     """Takes in an utterance string that is expected to contain preferences for restaurant
     food type/area/pricerange, and returns all the preferences it can find.
     If a certain preference is not found, this is represented by the empty string.
@@ -371,7 +374,7 @@ def dialog_management(state, utterance, preferences, bonus_preferences):
     print("Utterance class", utterance_class)
     print("State", state)
 
-    if utterance_class == "restart" or utterance_class == "null":
+    if utterance_class == "restart":
         reply = "I'm sorry I couldn't help you this time, let's start over! :) \n Welcome to Zeus bot, " \
                 "let me help you suggest a restaurant, do you have any preferences?"
         next_state = 2
@@ -419,23 +422,19 @@ def dialog_management(state, utterance, preferences, bonus_preferences):
                 next_state = 25
             else:
                 next_state = 99
-                reply = "Do you have any other preferences? Options are: \n good food, busy, long stay, romantic,children"
-                # return next_state, reply, preference_list, bonus_preferences
-                #
-                # preferences_dict = {"food": preferences[0], "area": preferences[1], "pricerange": preferences[2]}
-                # restaurant, alternatives = lookup_restaurants(preferences_dict)
-                # # print(restaurant, alternatives)
+                reply = "Do you have any other preferences? Options are: \n" \
+                        " good food, busy, long stay, romantic,children"
         # user gave even more preferences
         elif utterance_class == "inform":
             preference_list = extract_preferences(utterance, preference_list)
 
             print(preference_list)
-            print("Are these correct?")
+            eply = "Are these correct?"
             next_state = 6
         else:
             print("Sorry, Zeus doesnt understand")
             print(preference_list)
-            print("Are these cprrect?")
+            reply = "Are these correct?"
             next_state = 6
 
     # user still needs to specify some food  preference
@@ -477,10 +476,10 @@ def dialog_management(state, utterance, preferences, bonus_preferences):
     elif state == 99:
         if utterance_class == "null":
             print("Im sorry Zeus doesn't understand \n")
-            print("Do you have any extra preferences? Options are: \n good food, busy, long stay, romantic,children")
+            reply = "Do you have any extra preferences? Options are: \n good food, busy, long stay, romantic,children"
             next_state = 99
 
-        if utterance_class == "negate" or utterance_class == "deny":
+        elif utterance_class == "negate" or utterance_class == "deny":
             next_state = 12
             preferences_dict = {"food": preferences[0], "area": preferences[1], "pricerange": preferences[2]}
             restaurant, alternatives = lookup_restaurants(preferences_dict)
@@ -493,7 +492,6 @@ def dialog_management(state, utterance, preferences, bonus_preferences):
             restaurant, alternatives = lookup_restaurants(preferences_dict)
 
             restaurant = lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences)
-            print("After extra references:", restaurant)
 
             if restaurant.values.size == 0:
                 reply = "Sorry, I cant find anything that matches your preferences, you can try again without" \
