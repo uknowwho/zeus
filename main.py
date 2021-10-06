@@ -43,9 +43,9 @@ dictionary = {
     14: "thankyou"
 }
 
-def debugprint(message):
+def debugprint(*args):
     if debug:
-        print("DEBUG", message)
+        print("DEBUG", ' '.join(args))
 
 
 def preprocess(sentence):
