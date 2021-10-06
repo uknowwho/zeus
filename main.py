@@ -245,7 +245,7 @@ def get_bonus_preferences(utterance, bonus_preferences):
     """
 
     good_food, busy, longstay, romantic, children = bonus_preferences
-    
+
     if "good" in utterance and "food" in utterance:
         good_food = True
 
@@ -349,7 +349,7 @@ def lookup_restaurants(state):
     return restaurant, alternatives
 
 
-def dialog_management(state, utterance, preferences, bonus_preferences):
+def dialog_management(state, utterance, preferences, bonus_preferences, baseline=False):
     """Handles most of the dialog, the most important function that is repeatedly called
     in the main program.
         state:			    state number as integer, see the diagram
@@ -365,14 +365,14 @@ def dialog_management(state, utterance, preferences, bonus_preferences):
 
     if not baseline:
         # load the model and the vectorier
-        model = load_model('saved models/feedforward')
+        model = load_model('saved models/decision')
         file = open('saved models/vectorizer/vectorizer.pkl', 'rb')
         vectorizer = pickle.load(file)
         file.close()
 
         bow_wrds = vectorizer.transform([processed_utterance]).toarray()
         bow_wrds = pad_sequences(bow_wrds, maxlen=704, value=0)
-        utterance_class = dictionary[np.argmax(model.predict(bow_wrds))]
+        utterance_class = dictionary[model.predict(bow_wrds)]
 
     else:
         print(processed_utterance)
@@ -465,7 +465,7 @@ let me help you suggest a restaurant, do you have any preferences?"""
             preference_list[1] = area_pref
         else:
             preference_list = extract_preferences(utterance, preference_list)
-        
+
         # TODO: also fix this one, and move to a separate function, because this same line is also printed somewhere else
         # and it should definitely be the same everywhere
         reply = "So you want a " + preference_list[2] + " restaurant that offers " + preference_list[0] + \
@@ -479,7 +479,7 @@ let me help you suggest a restaurant, do you have any preferences?"""
         else:
             pricerange_pref = extract_preferences(utterance, preference_list)[2]
         preference_list = [preferences[0], preferences[1], pricerange_pref]
-        
+
         # TODO: deal with info not being known
         # it gives "dontcare" area, change that to any
         reply = "So you want a " + preference_list[2] + " restaurant that offers " + preference_list[0] + \
@@ -577,7 +577,7 @@ if __name__ == "__main__":
     preferences = ["", "", ""]
     bonus_preferences = ["", "", "", "", ""]
 
-    model = load_model("saved models/feedforward")
+    model = load_model("saved models/decision")
 
     state = 2
     print("Welcome to Zeus bot, let me help you suggest a restaurant, do you have any preferences?")
@@ -591,8 +591,7 @@ if __name__ == "__main__":
         if user_input == "quit":
             break
 
-        state, reply, preferences, bonus_preferences = dialog_management(state, user_input, preferences,
-                                                                         bonus_preferences)
+        state, reply, preferences, bonus_preferences = dialog_management(state, user_input, preferences, bonus_preferences, baseline)
 
         print(reply)
         if t2s:
