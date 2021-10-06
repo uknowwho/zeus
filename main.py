@@ -12,6 +12,9 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from keras.preprocessing.sequence import pad_sequences
 
+# globals
+DEBUG = True
+
 try:
     nltk.data.find('tokenizers/punkt')
 except LookupError:
@@ -39,6 +42,10 @@ dictionary = {
     13: "restart",
     14: "thankyou"
 }
+
+def debugprint(message):
+    if debug:
+        print("DEBUG", message)
 
 
 def preprocess(sentence):
@@ -379,8 +386,9 @@ def dialog_management(state, utterance, preferences, bonus_preferences, baseline
         print(processed_utterance)
         utterance_class = rule_based(processed_utterance)
 
-    print("Utterance class", utterance_class)
-    print("State", state)
+
+    debugprint("Utterance class", utterance_class)
+    debugprint("State", state)
 
     if utterance_class == "restart":
         reply = "I'm sorry I couldn't help you this time, let's start over! :) \n Welcome to Zeus bot, " \
