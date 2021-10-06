@@ -12,8 +12,6 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from keras.preprocessing.sequence import pad_sequences
 
-# globals
-DEBUG = True
 
 try:
     nltk.data.find('tokenizers/punkt')
@@ -44,8 +42,9 @@ dictionary = {
 }
 
 def debugprint(*args):
-    if debug:
-        print("DEBUG", ' '.join(args))
+    """Print the arguments only if the global DEBUG option is set"""
+    if "--debug" in sys.argv:
+        print("DEBUG:", ' '.join((str(arg) for arg in args)))
 
 
 def preprocess(sentence):
