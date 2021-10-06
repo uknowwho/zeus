@@ -71,6 +71,11 @@ def ask_preferences(preferences):
     return reply
 
 
+def majority_label(sent):
+    res_df = pd.read_csv('updated_restaurant_info.csv')
+    return res_df["labels"].value_counts().index[0]
+
+
 def generate_reply(df):
     """"Generates a reply based on a specific restaurant.
         df:		information about a specific restaurant, stored in a dataframe
@@ -90,15 +95,13 @@ def generate_reply(df):
     return reply, next_state
 
 
-def overlap(keywords,  # set of words
-            sentence  # sentence as string
-            ):
+def overlap(keywords, sentence):
     """Check whether any of the keywords are in the sentence"""
     return len(keywords.intersection(set(sentence.split()))) >= 1
 
 
 def rule_based(sent):
-    split_sent = sent.split()
+    split_sent = sent.lower().split()
 
     if overlap({"looking", "searching", "want", "cheap", "north", "east",
                 "south", "west", "priced", "find", "any", "italian", "moderate",
