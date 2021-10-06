@@ -77,7 +77,7 @@ def majority_label(sent):
 
 
 def generate_reply(df):
-    """"Generates a reply based on a specific restaurant.
+    """Generates a reply based on a specific restaurant.
         df:		information about a specific restaurant, stored in a dataframe
         returns:	recommendation or failure reply, string"""
 
@@ -87,10 +87,11 @@ def generate_reply(df):
         next_state = 2
     # A valid restaurant has been passed in, so it is recommended to the user
     else:
-        reply = f"I think you would really like {df['restaurantname'].to_string(index=False)}, its located at {df['addr'].to_string(index=False)} {df['postcode'].to_string(index=False)}  \
+        reply = f"I think you would really like {df['restaurantname'].to_string(index=False)},\
+                it's located at {df['addr'].to_string(index=False)} {df['postcode'].to_string(index=False)}  \
                 in the  {df['area'].to_string(index=False)}  and the phone number is  \
-                {df['phone'].to_string(index=False)} Do you agree? If you keep finding me  \
-                suggesting the same restaurant, maybe try again and ask for something different."
+                {df['phone'].to_string(index=False)} Do you agree? If you find that I keep  \
+                suggesting the same restaurant, you could try again and ask for something different."
         next_state = 12
     return reply, next_state
 
@@ -157,9 +158,9 @@ def rule_based(sent):
 def parse_match(match, property_list):
     """Finds the closest matching preference word for a given food/area/pricerange word.
     Tries to find the closest match and chooses randomly in case of a tie.
-    word: 		word that was matched as food/area/pricerange
-    propertylist:	list of possible properties, e.g. [north, south, ..] for area
-    returns		closest matching preference word as string"""
+        word: 		word that was matched as food/area/pricerange
+        propertylist:	list of possible properties, e.g. [north, south, ..] for area
+        returns:		closest matching preference word as string"""
 
     word = match.group(1)
 
@@ -192,8 +193,8 @@ def extract_preferences(utterance, preferences):
     """Takes in an utterance string that is expected to contain preferences for restaurant
     food type/area/pricerange, and returns all the preferences it can find.
     If a certain preference is not found, this is represented by the empty string.
-    utterance:	string of utterance with preferences expected
-    returns:	list, in the form [food, area, pricerange]"""
+        utterance:	string of utterance with preferences expected
+        returns:	list, in the form [food, area, pricerange]"""
 
     food, area, price = preferences[0], preferences[1], preferences[2]
     tokenized = word_tokenize(utterance)  # sentence broken into words
@@ -235,13 +236,16 @@ def extract_preferences(utterance, preferences):
 
 
 def get_bonus_preferences(utterance, bonus_preferences):
-    """
-    :param utterance: the utterance
-    :param bonus_preferences: a variable to store the previous preferences
-    :return: a list of the extra preferences the user gave
+    """Retrieve bonus preferences from user utterance, or update if some are already known.
+    Bonus preferences are, in order: good food, busy, long stay, romantic, children
+        utterance:          user utterance, string
+        bonus_preferences   list containing already known bonus preferences in order,
+                            empty string if preference is not known
+        returns:            list of the extra preferences the user gave
     """
 
     good_food, busy, longstay, romantic, children = bonus_preferences
+    
     if "good" in utterance and "food" in utterance:
         good_food = True
 
@@ -259,18 +263,17 @@ def get_bonus_preferences(utterance, bonus_preferences):
     if "children" in utterance and not "not" in utterance:
         children = True
 
-    bonus_preferences = [good_food, busy, longstay, romantic, children]
-
-    return bonus_preferences
+    # Return the updated bonus preferences.
+    return [good_food, busy, longstay, romantic, children]
 
 
 def lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences):
     """Looks up restaurants based on bonus preferences.
-    Bonus preferences are: good food,busy,long stay,romantic,children
-    restaurant:		dataframe with the first suggestion
-    alternatives:		dataframe with the other alternatives if they exists
-    bonus_preferences: 	list with the extra preferences the user gave
-    returns:		a dataframe (could be empty) that satisfies the preferences"""
+    Bonus preferences are: good food, busy, long stay, romantic, children
+        restaurant:		    dataframe with the first suggestion
+        alternatives:		dataframe with the other alternatives if they exists
+        bonus_preferences: 	list with the extra preferences the user gave
+        returns:		    a dataframe (could be empty) that satisfies the preferences"""
 
     # TODO: remove debug print statements
     all_restaurants = pd.concat([restaurant, alternatives])
@@ -319,8 +322,8 @@ def lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences):
 
 def lookup_restaurants(state):
     """Looks up restaurants from the updated_restaurant_info.csv, based on the state
-    state: dictionary containing the preferences, is of type dict()
-    returns: one restaurant and alternatives, both of type pd.DataFrame"""
+        state: dictionary containing the preferences, is of type dict()
+        returns: one restaurant and alternatives, both of type pd.DataFrame"""
 
     # Load database
     res_df = pd.read_csv('updated_restaurant_info.csv')
@@ -349,14 +352,15 @@ def lookup_restaurants(state):
 def dialog_management(state, utterance, preferences, bonus_preferences):
     """Handles most of the dialog, the most important function that is repeatedly called
     in the main program.
-    state:			state number as integer, see the diagram
-    utterance:		user input as string
-    preferences:		preferences known as of now, list
-    bonus_preferences:	bonus preferences known as of now, list"""
+        state:			    state number as integer, see the diagram
+        utterance:		    user input as string
+        preferences:		preferences known as of now, list
+        bonus_preferences:	bonus preferences known as of now, list"""
 
     processed_utterance = preprocess(utterance)
     reply = ""
     next_state = 0
+    # TODO: why do we do this renaming? it's confusing
     preference_list = preferences
 
     if not baseline:
@@ -403,9 +407,11 @@ def dialog_management(state, utterance, preferences, bonus_preferences):
             previous_preferences = preference_list
             preference_list = extract_preferences(utterance, preference_list)
             if preference_list == previous_preferences:
-                reply = "I am so sorry we could not help you, I am going to reboot my menory and let's try again :) \n " \
-                        "maybe it helps if you slightly rephrase your sentences because I am silly. \n Welcome to Zeus bot " \
-                        "let me help you suggest a restaurant, do you have any preferences?"
+                reply = """I am so sorry we could not help you, I am going to reboot my menory and try again.
+It might help if you changed the wording of your sentence a bit, I could understand better.
+
+Welcome to Zeus bot,
+let me help you suggest a restaurant, do you have any preferences?"""
                 next_state = 2
             else:
 
@@ -415,18 +421,18 @@ def dialog_management(state, utterance, preferences, bonus_preferences):
         elif utterance_class == "affirm" or utterance_class == "ack":
             preference_list = [preference_list[0], preference_list[1], preference_list[2]]
             if preference_list[0] == "":
-                reply = "You have not specified a preferred type of food, you can enter a type or dontcare"
+                reply = '''You have not specified a preferred type of food, you can enter a food type or "dontcare"'''
                 next_state = 23
             elif preference_list[1] == "":
-                reply = "You have not specified a preferred location,  you can enter a location or type dontcare"
+                reply = '''You have not specified a preferred location,  you can enter a location or type "dontcare"'''
                 next_state = 24
             elif preference_list[2] == "":
-                reply = "You have not specified a preferred price range,  you can enter a price or type dontcare"
+                reply = '''You have not specified a preferred price range,  you can enter a price or type "dontcare"'''
                 next_state = 25
             else:
                 next_state = 99
                 reply = "Do you have any other preferences? Options are: \n" \
-                        " good food, busy, long stay, romantic,children"
+                        "   good food, busy, long stay, romantic, children"
         # user gave even more preferences
         elif utterance_class == "inform":
             preference_list = extract_preferences(utterance, preference_list)
@@ -435,7 +441,7 @@ def dialog_management(state, utterance, preferences, bonus_preferences):
             eply = "Are these correct?"
             next_state = 6
         else:
-            print("Sorry, Zeus doesnt understand")
+            print("Sorry, Zeus doesn't understand")
             print(preference_list)
             reply = "Are these correct?"
             next_state = 6
@@ -459,7 +465,9 @@ def dialog_management(state, utterance, preferences, bonus_preferences):
             preference_list[1] = area_pref
         else:
             preference_list = extract_preferences(utterance, preference_list)
-
+        
+        # TODO: also fix this one, and move to a separate function, because this same line is also printed somewhere else
+        # and it should definitely be the same everywhere
         reply = "So you want a " + preference_list[2] + " restaurant that offers " + preference_list[0] + \
                 " food in the " + preference_list[1] + " ? \n "
         next_state = 6
@@ -471,6 +479,9 @@ def dialog_management(state, utterance, preferences, bonus_preferences):
         else:
             pricerange_pref = extract_preferences(utterance, preference_list)[2]
         preference_list = [preferences[0], preferences[1], pricerange_pref]
+        
+        # TODO: deal with info not being known
+        # it gives "dontcare" area, change that to any
         reply = "So you want a " + preference_list[2] + " restaurant that offers " + preference_list[0] + \
                 " food in the " + preference_list[1] + " ? \n "
         next_state = 6
@@ -479,11 +490,13 @@ def dialog_management(state, utterance, preferences, bonus_preferences):
     elif state == 99:
         if utterance_class == "null":
             print("Im sorry Zeus doesn't understand \n")
-            reply = "Do you have any extra preferences? Options are: \n good food, busy, long stay, romantic,children"
+            reply = "Do you have any extra preferences? Options are: \n good food, busy, long stay, romantic, children."
             next_state = 99
 
         elif utterance_class == "negate" or utterance_class == "deny":
             next_state = 12
+            # TODO: change these, and following, to a dict(zip(["food", "area", "pricerange"], preferences)),
+            # or something along those lines that works
             preferences_dict = {"food": preferences[0], "area": preferences[1], "pricerange": preferences[2]}
             restaurant, alternatives = lookup_restaurants(preferences_dict)
             reply = generate_reply(restaurant)
@@ -527,6 +540,8 @@ def dialog_management(state, utterance, preferences, bonus_preferences):
                 next_state = 12
 
         else:
+            # TODO: move this string into a global or a function or something, because it's used several times
+            # Perhaps make the second part its own global, because that one is also used in several places on its own
             reply = "I'm sorry I couldn't help you this time, let's start over! :) \n Welcome to Zeus bot, " \
                     "let me help you suggest a restaurant, do you have any preferences?"
             next_state = 2
