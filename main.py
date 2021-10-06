@@ -12,7 +12,6 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from keras.preprocessing.sequence import pad_sequences
 
-
 try:
     nltk.data.find('tokenizers/punkt')
 except LookupError:
@@ -40,11 +39,6 @@ dictionary = {
     13: "restart",
     14: "thankyou"
 }
-
-def debugprint(*args):
-    """Print the arguments only if the global DEBUG option is set"""
-    if "--debug" in sys.argv:
-        print("DEBUG:", ' '.join((str(arg) for arg in args)))
 
 
 def preprocess(sentence):
@@ -370,7 +364,7 @@ def dialog_management(state, utterance, preferences, bonus_preferences, baseline
 
     if not baseline:
         # load the model and the vectorier
-        file = open('saved models/decision/decision_model.pkl', 'rb')
+        file = open('saved models/regression/logistic_regression.pkl', 'rb')
         model = pickle.load(file)
         file.close()
         file = open('saved models/vectorizer/vectorizer.pkl', 'rb')
@@ -378,16 +372,15 @@ def dialog_management(state, utterance, preferences, bonus_preferences, baseline
         file.close()
 
         bow_wrds = vectorizer.transform([processed_utterance]).toarray()
-        bow_wrds = pad_sequences(bow_wrds, maxlen=767, value=0)
+        bow_wrds = pad_sequences(bow_wrds, maxlen=704, value=0)
         utterance_class = dictionary[model.predict(bow_wrds)[0]]
 
     else:
         print(processed_utterance)
         utterance_class = rule_based(processed_utterance)
 
-
-    debugprint("Utterance class", utterance_class)
-    debugprint("State", state)
+    print("Utterance class", utterance_class)
+    print("State", state)
 
     if utterance_class == "restart":
         reply = "I'm sorry I couldn't help you this time, let's start over! :) \n Welcome to Zeus bot, " \
@@ -415,7 +408,7 @@ def dialog_management(state, utterance, preferences, bonus_preferences, baseline
             previous_preferences = preference_list
             preference_list = extract_preferences(utterance, preference_list)
             if preference_list == previous_preferences:
-                reply = """I am so sorry we could not help you, I am going to reboot my menory and try again.
+                reply = """I am so sorry we could not help you, I am going to reboot my memory and try again.
 It might help if you changed the wording of your sentence a bit, I could understand better.
 
 Welcome to Zeus bot,
@@ -428,10 +421,6 @@ let me help you suggest a restaurant, do you have any preferences?"""
 
         elif utterance_class == "affirm" or utterance_class == "ack":
             preference_list = [preference_list[0], preference_list[1], preference_list[2]]
-
-            # TODO: the program can actually handle dontcare inputs a bit more flexibly,
-            # maybe the prompt should reflect that, not sure.
-            
             if preference_list[0] == "":
                 reply = '''You have not specified a preferred type of food, you can enter a food type or "dontcare"'''
                 next_state = 23
@@ -458,13 +447,9 @@ let me help you suggest a restaurant, do you have any preferences?"""
             reply = "Are these correct?"
             next_state = 6
 
-    def dontcare_check(utterance):
-        """"Checks whether the utterance is "I don't care" or something close to that"""
-        return nltk.edit_distance(utterance, "don't care") < 7
-
     # user still needs to specify some food  preference
     elif state == 23:
-        if dontcare_check(utterance):
+        if utterance == "dontcare" or utterance == "dont care":
             food_pref = "dontcare"
         else:
             food_pref = extract_preferences(utterance, preference_list)[0]
@@ -476,7 +461,7 @@ let me help you suggest a restaurant, do you have any preferences?"""
     # user still needs to specify some area preference
     elif state == 24:
 
-        if dontcare_check(utterance):
+        if utterance == "dontcare" or utterance == "dont care":
             area_pref = "dontcare"
             preference_list[1] = area_pref
         else:
@@ -490,7 +475,7 @@ let me help you suggest a restaurant, do you have any preferences?"""
 
     # user still needs to specify some pricerange preference
     elif state == 25:
-        if dontcare_check(utterance):
+        if utterance == "dontcare" or utterance == "dont care":
             pricerange_pref = "dontcare"
         else:
             pricerange_pref = extract_preferences(utterance, preference_list)[2]
@@ -593,7 +578,7 @@ if __name__ == "__main__":
     preferences = ["", "", ""]
     bonus_preferences = ["", "", "", "", ""]
 
-    file = open('saved models/decision/decision_model.pkl', 'rb')
+    file = open('saved models/regression/logistic_regression.pkl', 'rb')
     model = pickle.load(file)
     file.close()
 
