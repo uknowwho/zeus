@@ -42,7 +42,7 @@ dictionary = {
 }
 
 def debugprint(*args):
-    """Print the arguments only if the global DEBUG option is set"""
+    """Print the arguments only if the program is run with the --debug option"""
     if "--debug" in sys.argv:
         print("DEBUG:", ' '.join((str(arg) for arg in args)))
 
