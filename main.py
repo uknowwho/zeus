@@ -370,7 +370,7 @@ def dialog_management(state, utterance, preferences, bonus_preferences, baseline
 
     if not baseline:
         # load the model and the vectorier
-        file = open('saved models/decision/decision_model.pkl', 'rb')
+        file = open('saved models/regression/logistic_regression.pkl', 'rb')
         model = pickle.load(file)
         file.close()
         file = open('saved models/vectorizer/vectorizer.pkl', 'rb')
@@ -378,7 +378,7 @@ def dialog_management(state, utterance, preferences, bonus_preferences, baseline
         file.close()
 
         bow_wrds = vectorizer.transform([processed_utterance]).toarray()
-        bow_wrds = pad_sequences(bow_wrds, maxlen=767, value=0)
+        bow_wrds = pad_sequences(bow_wrds, maxlen=704, value=0)
         utterance_class = dictionary[model.predict(bow_wrds)[0]]
 
     else:
@@ -415,7 +415,7 @@ def dialog_management(state, utterance, preferences, bonus_preferences, baseline
             previous_preferences = preference_list
             preference_list = extract_preferences(utterance, preference_list)
             if preference_list == previous_preferences:
-                reply = """I am so sorry we could not help you, I am going to reboot my menory and try again.
+                reply = """I am so sorry we could not help you, I am going to reboot my memory and try again.
 It might help if you changed the wording of your sentence a bit, I could understand better.
 
 Welcome to Zeus bot,
@@ -593,7 +593,7 @@ if __name__ == "__main__":
     preferences = ["", "", ""]
     bonus_preferences = ["", "", "", "", ""]
 
-    file = open('saved models/decision/decision_model.pkl', 'rb')
+    file = open('saved models/regression/logistic_regression.pkl', 'rb')
     model = pickle.load(file)
     file.close()
 
