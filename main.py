@@ -10,7 +10,6 @@ import nltk
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
-from keras.models import load_model
 from keras.preprocessing.sequence import pad_sequences
 
 try:
@@ -365,14 +364,16 @@ def dialog_management(state, utterance, preferences, bonus_preferences, baseline
 
     if not baseline:
         # load the model and the vectorier
-        model = load_model('saved models/decision')
+        file = open('saved models/decision/decision_model.pkl', 'rb')
+        model = pickle.load(file)
+        file.close()
         file = open('saved models/vectorizer/vectorizer.pkl', 'rb')
         vectorizer = pickle.load(file)
         file.close()
 
         bow_wrds = vectorizer.transform([processed_utterance]).toarray()
-        bow_wrds = pad_sequences(bow_wrds, maxlen=704, value=0)
-        utterance_class = dictionary[model.predict(bow_wrds)]
+        bow_wrds = pad_sequences(bow_wrds, maxlen=767, value=0)
+        utterance_class = dictionary[model.predict(bow_wrds)[0]]
 
     else:
         print(processed_utterance)
@@ -577,7 +578,9 @@ if __name__ == "__main__":
     preferences = ["", "", ""]
     bonus_preferences = ["", "", "", "", ""]
 
-    model = load_model("saved models/decision")
+    file = open('saved models/decision/decision_model.pkl', 'rb')
+    model = pickle.load(file)
+    file.close()
 
     state = 2
     print("Welcome to Zeus bot, let me help you suggest a restaurant, do you have any preferences?")
