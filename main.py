@@ -253,6 +253,8 @@ def get_bonus_preferences(utterance, bonus_preferences):
 
     if "good" in utterance and "food" in utterance:
         good_food = True
+    if "good" in utterance and "food" in utterance and "not" in utterance:
+        good_food = False      
 
     if "busy" in utterance and not "not" in utterance:
         busy = True
@@ -261,13 +263,19 @@ def get_bonus_preferences(utterance, bonus_preferences):
 
     if "long stay" in utterance and not "not" in utterance:
         longstay = True
+    if "long stay" in utterance and "not" in utterance:
+        longstay = False
 
     if "romantic" in utterance and not "not" in utterance:
         romantic = True
-
+    if "romantic" in utterance and "not" in utterance:
+        romantic = False
+        
     if "children" in utterance and not "not" in utterance:
         children = True
-
+    if "children" in utterance and"not" in utterance:
+        children = False
+        
     # Return the updated bonus preferences.
     return [good_food, busy, longstay, romantic, children]
 
@@ -287,40 +295,51 @@ def lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences):
 
     # # good food
     if bonus_preferences[0]:
-        all_restaurants = all_restaurants[all_restaurants['good food'] == True]
-    if not bonus_preferences[0]:
-        all_restaurants = all_restaurants[all_restaurants['good food'] == False]
+      all_restaurants = all_restaurants[all_restaurants['good food'] == True]
+    elif bonus_preferences[0] == "":
+      pass
+    else:
+      all_restaurants = all_restaurants[all_restaurants['good food'] == False]
 
     # busy
     if bonus_preferences[1]:
-        all_restaurants = all_restaurants[all_restaurants.busy == True]
-    if not bonus_preferences[1]:
-        all_restaurants = all_restaurants[all_restaurants.busy == False]
+      all_restaurants = all_restaurants[all_restaurants.busy == True]
+    elif bonus_preferences[1] == "":
+      pass
+    else:
+      all_restaurants = all_restaurants[all_restaurants.busy == False]
+
 
     # long stay
     if bonus_preferences[2]:
-        all_restaurants = all_restaurants[all_restaurants['long stay'] == True]
-    if not bonus_preferences[2]:
-        all_restaurants = all_restaurants[all_restaurants['long stay'] == False]
+      all_restaurants = all_restaurants[all_restaurants['long stay'] == True]
+    elif bonus_preferences[2] == "":
+      pass
+    else:
+      all_restaurants = all_restaurants[all_restaurants['long stay'] == False]
 
     # romantic
 
     if bonus_preferences[3]:
-        all_restaurants = all_restaurants[all_restaurants.romantic == True]
-    if not bonus_preferences[3]:
-        all_restaurants = all_restaurants[all_restaurants.romantic == False]
+      all_restaurants = all_restaurants[all_restaurants.romantic == True]
+    elif bonus_preferences[3] == "":
+      pass
+    else: 
+      all_restaurants = all_restaurants[all_restaurants.romantic == False]
 
     # children
     if bonus_preferences[4]:
-        all_restaurants = all_restaurants[all_restaurants.children == True]
-    if not bonus_preferences[4]:
-        all_restaurants = all_restaurants[all_restaurants.children == False]
+      all_restaurants = all_restaurants[all_restaurants.children == True]
+    elif bonus_preferences[4] == "":
+      pass
+    else:
+      all_restaurants = all_restaurants[all_restaurants.children == False]
 
     # Randomly sample one from the restaurants
     if all_restaurants.values.size == 0:
-        restaurant = all_restaurants
+      restaurant = all_restaurants
     else:
-        restaurant = all_restaurants.sample(1)
+      restaurant = all_restaurants.sample(1)
 
     return restaurant
 
@@ -352,10 +371,12 @@ def lookup_restaurants(state):
     alternatives = res_df.iloc[all_restaurants.index.difference(restaurant.index)]
 
     return restaurant, alternatives
+  
 
 def dontcare_check(utterance):
     """"Checks whether the utterance is "I don't care" or something close to that"""
     return nltk.edit_distance(utterance, "don't care") < 7
+
 
 
 def dialog_management(state, utterance, preferences, bonus_preferences, baseline=False):
@@ -454,15 +475,13 @@ let me help you suggest a restaurant, do you have any preferences?"""
             preference_list = extract_preferences(utterance, preference_list)
 
             print(preference_list)
-            eply = "Are these correct?"
+            reply = "Are these correct?"
             next_state = 6
         else:
             print("Sorry, Zeus doesn't understand")
             print(preference_list)
             reply = "Are these correct?"
             next_state = 6
-
-
 
     # user still needs to specify some food  preference
     elif state == 23:
@@ -526,12 +545,12 @@ let me help you suggest a restaurant, do you have any preferences?"""
             restaurant, alternatives = lookup_restaurants(preferences_dict)
 
             restaurant = lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences)
+            print(restaurant)
 
             if restaurant.values.size == 0:
                 reply = "Sorry, I cant find anything that matches your preferences, you can try again without" \
                         " bonus preferences \n :( "
                 next_state = 2
-                preference_list = ["", "", ""]
                 bonus_preferences = ["", "", "", "", ""]
             else:
                 reply = generate_reply(restaurant)
@@ -610,9 +629,9 @@ if __name__ == "__main__":
         user_input = input().lower()
         if user_input == "quit":
             break
-
+          
         state, reply, preferences, bonus_preferences = dialog_management(state, user_input, preferences, bonus_preferences, baseline)
-
+        print(state)
         print(reply)
         if t2s:
             engine.say(reply)
