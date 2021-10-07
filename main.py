@@ -454,7 +454,7 @@ let me help you suggest a restaurant, do you have any preferences?"""
             preference_list = extract_preferences(utterance, preference_list)
 
             print(preference_list)
-            eply = "Are these correct?"
+            reply = "Are these correct?"
             next_state = 6
         else:
             print("Sorry, Zeus doesn't understand")
