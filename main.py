@@ -353,6 +353,10 @@ def lookup_restaurants(state):
 
     return restaurant, alternatives
 
+def dontcare_check(utterance):
+    """"Checks whether the utterance is "I don't care" or something close to that"""
+    return nltk.edit_distance(utterance, "don't care") < 7
+
 
 def dialog_management(state, utterance, preferences, bonus_preferences, baseline=False):
     """Handles most of the dialog, the most important function that is repeatedly called
@@ -458,9 +462,7 @@ let me help you suggest a restaurant, do you have any preferences?"""
             reply = "Are these correct?"
             next_state = 6
 
-    def dontcare_check(utterance):
-        """"Checks whether the utterance is "I don't care" or something close to that"""
-        return nltk.edit_distance(utterance, "don't care") < 7
+
 
     # user still needs to specify some food  preference
     elif state == 23:
