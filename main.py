@@ -5,7 +5,6 @@ import pyttsx3
 import numpy as np
 import pickle
 import os
-
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import nltk
 from nltk.stem import PorterStemmer
@@ -22,6 +21,9 @@ try:
     nltk.data.find('corpora/stopwords')
 except LookupError:
     nltk.download('stopwords')
+
+WELCOME = "Welcome to Zeus bot, let me help you suggest a restaurant, do you have any preferences?"
+SORRY = "I'm sorry I couldn't help you this time, let's start over! :) \n"
 
 dictionary = {
     0: "ack",
@@ -71,6 +73,16 @@ def majority_label(sent):
     return res_df["labels"].value_counts().index[0]
 
 
+def format_reply(df):
+
+    reply = f"""I think you would really like {df['restaurantname'].to_string(index=False)},
+it's located at {df['addr'].to_string(index=False)} {df['postcode'].to_string(index=False)}
+in the  {df['area'].to_string(index=False)}  and the phone number is
+{df['phone'].to_string(index=False)} Do you agree? If you find that I keep
+suggesting the same restaurant, you could try again and ask for something different."""
+    return reply
+
+
 def generate_reply(df):
     """Generates a reply based on a specific restaurant.
         df:		information about a specific restaurant, stored in a dataframe
@@ -78,15 +90,11 @@ def generate_reply(df):
 
     # Bot couldnt find a restaurant so it starts over
     if df.values.size == 0:
-        reply = "I am sorry, I could not find a restaurant to match your preferences, please try again"
+        reply = SORRY + WELCOME
         next_state = 2
     # A valid restaurant has been passed in, so it is recommended to the user
     else:
-        reply = f"""I think you would really like {df['restaurantname'].to_string(index=False)},
-it's located at {df['addr'].to_string(index=False)} {df['postcode'].to_string(index=False)}
-in the  {df['area'].to_string(index=False)}  and the phone number is
-{df['phone'].to_string(index=False)} Do you agree? If you find that I keep
-suggesting the same restaurant, you could try again and ask for something different."""
+        reply = format_reply(df)
         next_state = 12
 
     return reply, next_state
@@ -98,11 +106,7 @@ def generate_reply_alternatives(df):
         next_state = 2
     else:
         df = df.sample()
-        reply = f"""I think you would really like {df['restaurantname'].to_string(index=False)},
-it's located at {df['addr'].to_string(index=False)} {df['postcode'].to_string(index=False)}
-in the  {df['area'].to_string(index=False)}  and the phone number is
-{df['phone'].to_string(index=False)} Do you agree? If you find that I keep
-suggesting the same restaurant, you could try again and ask for something different."""
+        reply = format_reply(df)
         next_state = 12
 
     return reply, next_state
@@ -295,12 +299,9 @@ def lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences):
         bonus_preferences: 	list with the extra preferences the user gave
         returns:		    a dataframe (could be empty) that satisfies the preferences"""
 
-    # TODO: remove debug print statements
     all_restaurants = pd.concat([restaurant, alternatives])
-    # print(all_restaurants)
-    # print("it printed all restaurants, fine till here")
 
-    # # good food
+    # good food
     if bonus_preferences[0]:
         all_restaurants = all_restaurants[all_restaurants['good food'] == True]
     elif bonus_preferences[0] == "":
@@ -459,8 +460,7 @@ def dialog_management(state, utterance, preferences, bonus_preferences, alternat
     debugprint("State", state)
 
     if utterance_class == "restart":
-        reply = "I'm sorry I couldn't help you this time, let's start over! :) \n Welcome to Zeus bot, " \
-                "let me help you suggest a restaurant, do you have any preferences?"
+        reply = SORRY + WELCOME
         next_state = 2
         preference_list = ["", "", ""]
         return next_state, reply, preference_list, bonus_preferences
@@ -485,11 +485,7 @@ def dialog_management(state, utterance, preferences, bonus_preferences, alternat
             previous_preferences = preference_list
             preference_list = extract_preferences(utterance, preference_list)
             if preference_list == previous_preferences:
-                reply = """I am so sorry we could not help you, I am going to reboot my memory and try again.
-It might help if you changed the wording of your sentence a bit, I could understand better.
-
-Welcome to Zeus bot,
-let me help you suggest a restaurant, do you have any preferences?"""
+                reply = SORRY + WELCOME
                 next_state = 2
             else:
 
@@ -499,17 +495,14 @@ let me help you suggest a restaurant, do you have any preferences?"""
         elif utterance_class == "affirm" or utterance_class == "ack":
             preference_list = [preference_list[0], preference_list[1], preference_list[2]]
 
-            # TODO: the program can actually handle dontcare inputs a bit more flexibly,
-            # maybe the prompt should reflect that, not sure.
-
             if preference_list[0] == "":
-                reply = '''You have not specified a preferred type of food, you can enter a food type or "dontcare"'''
+                reply = '''You have not specified a preferred type of food, you can enter a food type or say that you don't care.'''
                 next_state = 23
             elif preference_list[1] == "":
-                reply = '''You have not specified a preferred location,  you can enter a location or type "dontcare"'''
+                reply = '''You have not specified a preferred location,  you can enter a location or say that you don't care.'''
                 next_state = 24
             elif preference_list[2] == "":
-                reply = '''You have not specified a preferred price range,  you can enter a price or type "dontcare"'''
+                reply = '''You have not specified a preferred price range,  you can enter a price or say that you don't care.'''
                 next_state = 25
             else:
                 next_state = 99
@@ -547,8 +540,6 @@ let me help you suggest a restaurant, do you have any preferences?"""
         else:
             preference_list = extract_preferences(utterance, preference_list)
 
-        # TODO: also fix this one, and move to a separate function, because this same line is also printed somewhere else
-        # and it should definitely be the same everywhere
         reply = confirm_preferences(preference_list)
         next_state = 6
 
@@ -560,8 +551,6 @@ let me help you suggest a restaurant, do you have any preferences?"""
             pricerange_pref = extract_preferences(utterance, preference_list)[2]
         preference_list = [preferences[0], preferences[1], pricerange_pref]
 
-        # TODO: deal with info not being known
-        # it gives "dontcare" area, change that to any
         reply = confirm_preferences(preference_list)
         next_state = 6
 
@@ -580,17 +569,14 @@ let me help you suggest a restaurant, do you have any preferences?"""
 
         else:
             bonus_preferences = get_bonus_preferences(utterance, bonus_preferences)
-            print("bonus preferences after extratcion", bonus_preferences)
+            # print("bonus preferences after extratcion", bonus_preferences)
             preferences_dict = dict(zip(["food", "area", "pricerange"], preference_list))
             restaurant, alternatives = lookup_restaurants(preferences_dict)
 
             restaurant = lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences)
-            # TODO: debugprint this, or make it a nicer print, this is not okay
-            print(restaurant)
 
             if restaurant.values.size == 0:
-                reply = "Sorry, I cant find anything that matches your preferences, you can try again without" \
-                        " bonus preferences \n :( "
+                reply = SORRY + WELCOME
                 next_state = 2
                 bonus_preferences = ["", "", "", "", ""]
             else:
@@ -603,31 +589,17 @@ let me help you suggest a restaurant, do you have any preferences?"""
             next_state = 17
             exit()
         elif utterance_class == "reqalt" or utterance_class == "negate" or utterance_class == "deny":
-            preferences_dict = dict(zip(["food", "area", "pricerange"], preferences))
-            restaurant, alternatives = lookup_restaurants(preferences_dict)
-            # STill need to finish this
 
-            # if there are no alternative suggestions, restart
-            if len(alternatives.index) == 0:
-                reply = "I am sorry but there are no alternatives. We can restart this chat, so please try something " \
-                        "else"
-                next_state = 2
-            else:
-                # TODO: generate_reply doesn't work with several alternatives I don't think, fix.
-                reply, next_state = generate_reply_alternatives(alternatives)
-                next_state = 12
+            reply, next_state = generate_reply_alternatives(alternatives)
 
         else:
-            # TODO: move this string into a global or a function or something, because it's used several times
-            # Perhaps make the second part its own global, because that one is also used in several places on its own
-            reply = "I'm sorry I couldn't help you this time, let's start over! :) \n Welcome to Zeus bot, " \
-                    "let me help you suggest a restaurant, do you have any preferences?"
+
+            reply = SORRY + WELCOME
             next_state = 2
             preference_list = ["", "", ""]
 
     else:
-        reply = "I'm sorry but I don't understand, let's start over \n Welcome to Zeus bot, let me help you " \
-                "suggest a restaurant, do you have any preferences?"
+        reply = SORRY + WELCOME
         next_state = 2
         preference_list = ["", "", ""]
 
