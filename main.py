@@ -1,26 +1,21 @@
-import re
-import sys
 import pandas as pd
-import pyttsx3
+import sys
 import numpy as np
 import pickle
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import nltk
+import re
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+import warnings
+warnings.filterwarnings("ignore")
 from keras.preprocessing.sequence import pad_sequences
+from rule_based import rule_based
+from replies import debugprint, format_reply, generate_reply, generate_reply_alternatives
+from lookup import overlap, parse_match, lookup_restaurants_bonus, lookup_restaurants, confirm_preferences,\
+    dontcare_check, preprocess
 
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
-
-try:
-    nltk.data.find('corpora/stopwords')
-except LookupError:
-    nltk.download('stopwords')
 
 WELCOME = "Welcome to Zeus bot, let me help you suggest a restaurant, do you have any preferences?"
 SORRY = "I'm sorry I couldn't help you this time, let's start over! :) \n"
@@ -42,168 +37,6 @@ dictionary = {
     13: "restart",
     14: "thankyou"
 }
-
-
-def debugprint(*args):
-    """Print the arguments only if the global DEBUG option is set"""
-    if "--debug" in sys.argv:
-        print("DEBUG:", ' '.join((str(arg) for arg in args)))
-
-
-def preprocess(sentence):
-    """Preprocesses sentence: normalizes whitespace, removes punctionation and stems words (removing inflection).
-        sentence:	string, as input by user
-        returns:	sentence as string, preprocessed"""
-    # preprocessing
-    tokenizer = nltk.RegexpTokenizer(r"\w+")  # remove punctuation
-    stemmer = PorterStemmer()
-    tokenized = tokenizer.tokenize(sentence)
-
-    stemmed = []
-    for token in tokenized:
-        stemmed_word = stemmer.stem(token)
-        stemmed.append(stemmed_word)
-    # flatten list in stemmed
-    processed_sentence = ' '.join(stem for stem in stemmed)
-    return processed_sentence
-
-
-def majority_label(sent):
-    res_df = pd.read_csv('updated_restaurant_info.csv')
-    return res_df["labels"].value_counts().index[0]
-
-
-def format_reply(df):
-
-    reply = f"""I think you would really like {df['restaurantname'].to_string(index=False)},
-it's located at {df['addr'].to_string(index=False)} {df['postcode'].to_string(index=False)}
-in the  {df['area'].to_string(index=False)}  and the phone number is
-{df['phone'].to_string(index=False)} Do you agree? If you find that I keep
-suggesting the same restaurant, you could try again and ask for something different."""
-    return reply
-
-
-def generate_reply(df):
-    """Generates a reply based on a specific restaurant.
-        df:		information about a specific restaurant, stored in a dataframe
-        returns:	recommendation or failure reply, string"""
-
-    # Bot couldnt find a restaurant so it starts over
-    if df.values.size == 0:
-        reply = SORRY + WELCOME
-        next_state = 2
-    # A valid restaurant has been passed in, so it is recommended to the user
-    else:
-        reply = format_reply(df)
-        next_state = 12
-
-    return reply, next_state
-
-
-def generate_reply_alternatives(df):
-    if df.values.size == 0:
-        reply = "I am sorry, I could not find an alternative restaurant to match your preferences, please try again"
-        next_state = 2
-    else:
-        df = df.sample()
-        reply = format_reply(df)
-        next_state = 12
-
-    return reply, next_state
-
-
-def overlap(keywords, sentence):
-    """Check whether any of the keywords are in the sentence"""
-    return len(keywords.intersection(set(sentence.split()))) >= 1
-
-
-def rule_based(sent):
-    split_sent = sent.lower().split()
-
-    if overlap({"looking", "searching", "want", "cheap", "north", "east",
-                "south", "west", "priced", "find", "any", "italian", "moderate",
-                "spanish", "matter"}, sent):
-        return "inform"
-
-    elif overlap({"what", "where", "when", "whats", "may", "could", "address",
-                  "type", "phone", "code"}, sent):
-        return "request"
-
-    elif overlap({"thanks", "thank"}, sent):
-        return "thankyou"
-
-    elif overlap({"another", "other", "else"}, sent) or sent.startswith("how about"):
-        return "reqalt"
-
-    elif overlap({"um", "hm", "unintelligible", "noise"}, sent):
-        return "null"
-
-    elif overlap({"yes", "right", "yeah", "correct", "ye"}, sent):
-        return "affirm"
-
-    elif "bye" in sent:
-        return "bye"
-
-    elif sent.startswith("is it"):
-        return "confirm"
-
-    elif "hello" in sent or "hi" in split_sent:
-        return "hello"
-
-    elif "no" in split_sent:
-        return "negate"
-
-    elif "dont" in split_sent:
-        return "deny"
-
-    elif "repeat" in sent:
-        return "repeat"
-
-    elif "okay" in split_sent:
-        return "ack"
-
-    elif overlap({"restart", "start"}, sent):
-        return "restart"
-
-    elif "more" in split_sent:
-        return "reqmore"
-
-    return "inform"
-
-
-def parse_match(match, property_list):
-    """Finds the closest matching preference word for a given food/area/pricerange word.
-    Tries to find the closest match and chooses randomly in case of a tie.
-        word: 		word that was matched as food/area/pricerange
-        propertylist:	list of possible properties, e.g. [north, south, ..] for area
-        returns:		closest matching preference word as string"""
-
-    word = match.group(1)
-
-    if word == "any":
-        return "dontcare"
-
-    one_dist = []
-    two_dist = []
-    for prop in property_list:
-        distance = nltk.edit_distance(word, prop)
-        if distance == 0:
-            return word
-
-        if distance == 1:
-            one_dist.append(prop)
-
-        if distance == 2:
-            two_dist.append(prop)
-
-    if one_dist != []:
-        return np.random.choice(one_dist)
-
-    if two_dist != []:
-        return np.random.choice(two_dist)
-
-    return ""
-
 
 def extract_preferences(utterance, preferences):
     """Takes in an utterance string that is expected to contain preferences for restaurant
@@ -286,143 +119,10 @@ def get_bonus_preferences(utterance, bonus_preferences):
         children = True
     if "children" in utterance and "not" in utterance:
         children = False
+    bonus_preferences = [good_food, busy, longstay, romantic, children]
 
     # Return the updated bonus preferences.
-    return [good_food, busy, longstay, romantic, children]
-
-
-def lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences):
-    """Looks up restaurants based on bonus preferences.
-    Bonus preferences are: good food, busy, long stay, romantic, children
-        restaurant:		    dataframe with the first suggestion
-        alternatives:		dataframe with the other alternatives if they exists
-        bonus_preferences: 	list with the extra preferences the user gave
-        returns:		    a dataframe (could be empty) that satisfies the preferences"""
-
-    all_restaurants = pd.concat([restaurant, alternatives])
-
-    # good food
-    if bonus_preferences[0]:
-        all_restaurants = all_restaurants[all_restaurants['good food'] == True]
-    elif bonus_preferences[0] == "":
-        pass
-    else:
-        all_restaurants = all_restaurants[all_restaurants['good food'] == False]
-
-    # busy
-    if bonus_preferences[1]:
-        all_restaurants = all_restaurants[all_restaurants.busy == True]
-    elif bonus_preferences[1] == "":
-        pass
-    else:
-        all_restaurants = all_restaurants[all_restaurants.busy == False]
-
-    # long stay
-    if bonus_preferences[2]:
-        all_restaurants = all_restaurants[all_restaurants['long stay'] == True]
-    elif bonus_preferences[2] == "":
-        pass
-    else:
-        all_restaurants = all_restaurants[all_restaurants['long stay'] == False]
-
-    # romantic
-
-    if bonus_preferences[3]:
-        all_restaurants = all_restaurants[all_restaurants.romantic == True]
-    elif bonus_preferences[3] == "":
-        pass
-    else:
-        all_restaurants = all_restaurants[all_restaurants.romantic == False]
-
-    # children
-    if bonus_preferences[4]:
-        all_restaurants = all_restaurants[all_restaurants.children == True]
-    elif bonus_preferences[4] == "":
-        pass
-    else:
-        all_restaurants = all_restaurants[all_restaurants.children == False]
-
-    # Randomly sample one from the restaurants
-    if all_restaurants.values.size == 0:
-        restaurant = all_restaurants
-    else:
-        restaurant = all_restaurants.sample(1)
-
-    return restaurant
-
-
-def lookup_restaurants(state):
-    """Looks up restaurants from the updated_restaurant_info.csv, based on the state
-        state: dictionary containing the preferences, is of type dict()
-        returns: one restaurant and alternatives, both of type pd.DataFrame"""
-
-    # Load database
-    res_df = pd.read_csv('updated_restaurant_info.csv')
-
-    # If no preference is expressed, any pricerange will do
-    conds = {"food": True, "area": True, "pricerange": True}
-    for prop in state:
-        if state[prop] != "dontcare":
-            conds[prop] = (res_df[prop] == state[prop])
-
-    all_restaurants = res_df[conds["pricerange"] & conds["area"] & conds["food"]]
-
-    # If none are found, return an empty dataframe
-    if all_restaurants.empty:
-        return all_restaurants, all_restaurants
-
-    # Randomly sample one from the restaurants
-    restaurant = all_restaurants.sample(1)
-
-    # Alternatives are all found restaurants excluding the sampled one
-    alternatives = res_df.iloc[all_restaurants.index.difference(restaurant.index)]
-    # print(restaurant, alternatives)
-    return restaurant, alternatives
-
-
-def dontcare_check(utterance):
-    """"Checks whether the utterance is "I don't care" or something close to that"""
-    return nltk.edit_distance(utterance, "don't care") < 7
-
-
-def confirm_preferences(preferences):
-    """Produces a confirmation message
-        preferences:    list of preferences in shape [foodtype, area, pricerange],
-                        or equivalent dict
-        returns:        confirmation message that asks whether all known preferences are correct"""
-
-    # convert to dict if it isn't already, it's just neater
-    if type(preferences) != dict:
-        preferences = dict(zip(["food", "area", "pricerange"], preferences))
-
-    # initiate "empty" message
-    message = "So you want a"
-
-    # add pricerange to message if known
-    if preferences["pricerange"] != "" and preferences["pricerange"] != "dontcare":
-        message = f"""{message} {preferences["pricerange"]}"""
-    # dontcare is dealt with later
-
-    message = f"{message} restaurant"
-
-    # add food type if known
-    if preferences["food"] == "dontcare":
-        message = f"""{message} that offers any kind of food"""
-    elif preferences["food"] != "":
-        message = f"""{message} that offers {preferences["food"]} food"""
-
-    # add area if known
-    if preferences["area"] == "dontcare":
-        message = f"""{message} in any area"""
-    elif preferences["area"] != "":
-        message = f"""{message} in the {preferences["area"]}"""
-
-    if preferences["pricerange"] == "dontcare":
-        message = f"""{message} for any price"""
-
-    message = message + "?\n"
-
-    return message
+    return bonus_preferences
 
 
 def dialog_management(state, utterance, preferences, bonus_preferences, alternatives, baseline=False):
@@ -488,8 +188,8 @@ def dialog_management(state, utterance, preferences, bonus_preferences, alternat
                 reply = SORRY + WELCOME
                 next_state = 2
             else:
-
-                print("Are these correct?")
+                # print("Are these correct?")
+                # print(preference_list)
                 next_state = 6
 
         elif utterance_class == "affirm" or utterance_class == "ack":
@@ -618,6 +318,7 @@ if __name__ == "__main__":
 
     df = pd.read_csv('updated_restaurant_info.csv')
     df = df.drop_duplicates()
+    # TODO: Fix NaN issue
     df = df.fillna('')
 
     area_list = set(df['area'].dropna().tolist()) | {'center'}
