@@ -5,13 +5,13 @@ import pyttsx3
 import numpy as np
 import pickle
 import os
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import nltk
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from keras.preprocessing.sequence import pad_sequences
-
 
 try:
     nltk.data.find('tokenizers/punkt')
@@ -40,6 +40,7 @@ dictionary = {
     13: "restart",
     14: "thankyou"
 }
+
 
 def debugprint(*args):
     """Print the arguments only if the global DEBUG option is set"""
@@ -87,7 +88,23 @@ in the  {df['area'].to_string(index=False)}  and the phone number is
 {df['phone'].to_string(index=False)} Do you agree? If you find that I keep
 suggesting the same restaurant, you could try again and ask for something different."""
         next_state = 12
-    
+
+    return reply, next_state
+
+
+def generate_reply_alternatives(df):
+    if df.values.size == 0:
+        reply = "I am sorry, I could not find an alternative restaurant to match your preferences, please try again"
+        next_state = 2
+    else:
+        df = df.sample()
+        reply = f"""I think you would really like {df['restaurantname'].to_string(index=False)},
+it's located at {df['addr'].to_string(index=False)} {df['postcode'].to_string(index=False)}
+in the  {df['area'].to_string(index=False)}  and the phone number is
+{df['phone'].to_string(index=False)} Do you agree? If you find that I keep
+suggesting the same restaurant, you could try again and ask for something different."""
+        next_state = 12
+
     return reply, next_state
 
 
@@ -244,7 +261,7 @@ def get_bonus_preferences(utterance, bonus_preferences):
     if "good" in utterance and "food" in utterance:
         good_food = True
     if "good" in utterance and "food" in utterance and "not" in utterance:
-        good_food = False      
+        good_food = False
 
     if "busy" in utterance and not "not" in utterance:
         busy = True
@@ -260,12 +277,12 @@ def get_bonus_preferences(utterance, bonus_preferences):
         romantic = True
     if "romantic" in utterance and "not" in utterance:
         romantic = False
-        
+
     if "children" in utterance and not "not" in utterance:
         children = True
-    if "children" in utterance and"not" in utterance:
+    if "children" in utterance and "not" in utterance:
         children = False
-        
+
     # Return the updated bonus preferences.
     return [good_food, busy, longstay, romantic, children]
 
@@ -285,51 +302,50 @@ def lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences):
 
     # # good food
     if bonus_preferences[0]:
-      all_restaurants = all_restaurants[all_restaurants['good food'] == True]
+        all_restaurants = all_restaurants[all_restaurants['good food'] == True]
     elif bonus_preferences[0] == "":
-      pass
+        pass
     else:
-      all_restaurants = all_restaurants[all_restaurants['good food'] == False]
+        all_restaurants = all_restaurants[all_restaurants['good food'] == False]
 
     # busy
     if bonus_preferences[1]:
-      all_restaurants = all_restaurants[all_restaurants.busy == True]
+        all_restaurants = all_restaurants[all_restaurants.busy == True]
     elif bonus_preferences[1] == "":
-      pass
+        pass
     else:
-      all_restaurants = all_restaurants[all_restaurants.busy == False]
-
+        all_restaurants = all_restaurants[all_restaurants.busy == False]
 
     # long stay
     if bonus_preferences[2]:
-      all_restaurants = all_restaurants[all_restaurants['long stay'] == True]
+        all_restaurants = all_restaurants[all_restaurants['long stay'] == True]
     elif bonus_preferences[2] == "":
-      pass
+        pass
     else:
-      all_restaurants = all_restaurants[all_restaurants['long stay'] == False]
+        all_restaurants = all_restaurants[all_restaurants['long stay'] == False]
 
     # romantic
 
     if bonus_preferences[3]:
-      all_restaurants = all_restaurants[all_restaurants.romantic == True]
+        all_restaurants = all_restaurants[all_restaurants.romantic == True]
     elif bonus_preferences[3] == "":
-      pass
-    else: 
-      all_restaurants = all_restaurants[all_restaurants.romantic == False]
+        pass
+    else:
+        all_restaurants = all_restaurants[all_restaurants.romantic == False]
 
     # children
     if bonus_preferences[4]:
-      all_restaurants = all_restaurants[all_restaurants.children == True]
+        all_restaurants = all_restaurants[all_restaurants.children == True]
     elif bonus_preferences[4] == "":
-      pass
+        pass
     else:
-      all_restaurants = all_restaurants[all_restaurants.children == False]
+        all_restaurants = all_restaurants[all_restaurants.children == False]
 
     # Randomly sample one from the restaurants
     if all_restaurants.values.size == 0:
-      restaurant = all_restaurants
+        restaurant = all_restaurants
     else:
-      restaurant = all_restaurants.sample(1)
+        restaurant = all_restaurants.sample(1)
 
     return restaurant
 
@@ -359,13 +375,14 @@ def lookup_restaurants(state):
 
     # Alternatives are all found restaurants excluding the sampled one
     alternatives = res_df.iloc[all_restaurants.index.difference(restaurant.index)]
-
+    # print(restaurant, alternatives)
     return restaurant, alternatives
-  
+
 
 def dontcare_check(utterance):
     """"Checks whether the utterance is "I don't care" or something close to that"""
     return nltk.edit_distance(utterance, "don't care") < 7
+
 
 def confirm_preferences(preferences):
     """Produces a confirmation message
@@ -392,24 +409,22 @@ def confirm_preferences(preferences):
         message = f"""{message} that offers any kind of food"""
     elif preferences["food"] != "":
         message = f"""{message} that offers {preferences["food"]} food"""
-    
 
     # add area if known
     if preferences["area"] == "dontcare":
         message = f"""{message} in any area"""
     elif preferences["area"] != "":
         message = f"""{message} in the {preferences["area"]}"""
-    
-    
+
     if preferences["pricerange"] == "dontcare":
         message = f"""{message} for any price"""
-    
+
     message = message + "?\n"
 
     return message
 
 
-def dialog_management(state, utterance, preferences, bonus_preferences, baseline=False):
+def dialog_management(state, utterance, preferences, bonus_preferences, alternatives, baseline=False):
     """Handles most of the dialog, the most important function that is repeatedly called
     in the main program.
         state:			    state number as integer, see the diagram
@@ -440,7 +455,6 @@ def dialog_management(state, utterance, preferences, bonus_preferences, baseline
         print(processed_utterance)
         utterance_class = rule_based(processed_utterance)
 
-
     debugprint("Utterance class", utterance_class)
     debugprint("State", state)
 
@@ -465,7 +479,7 @@ def dialog_management(state, utterance, preferences, bonus_preferences, baseline
     # generate and assign reply
 
     # Zeus bot asked if they got their preferences right and we get their reply
-    elif state == 6:  
+    elif state == 6:
 
         if utterance_class == "deny" or utterance_class == "negate":
             previous_preferences = preference_list
@@ -487,7 +501,7 @@ let me help you suggest a restaurant, do you have any preferences?"""
 
             # TODO: the program can actually handle dontcare inputs a bit more flexibly,
             # maybe the prompt should reflect that, not sure.
-            
+
             if preference_list[0] == "":
                 reply = '''You have not specified a preferred type of food, you can enter a food type or "dontcare"'''
                 next_state = 23
@@ -600,7 +614,7 @@ let me help you suggest a restaurant, do you have any preferences?"""
                 next_state = 2
             else:
                 # TODO: generate_reply doesn't work with several alternatives I don't think, fix.
-                reply, next_state = generate_reply(alternatives)
+                reply, next_state = generate_reply_alternatives(alternatives)
                 next_state = 12
 
         else:
@@ -617,7 +631,7 @@ let me help you suggest a restaurant, do you have any preferences?"""
         next_state = 2
         preference_list = ["", "", ""]
 
-    return next_state, reply, preference_list, bonus_preferences
+    return next_state, reply, preference_list, bonus_preferences, alternatives
 
 
 if __name__ == "__main__":
@@ -640,6 +654,7 @@ if __name__ == "__main__":
 
     preferences = ["", "", ""]
     bonus_preferences = ["", "", "", "", ""]
+    alternatives = []
 
     file = open('saved models/regression/logistic_regression.pkl', 'rb')
     model = pickle.load(file)
@@ -656,8 +671,9 @@ if __name__ == "__main__":
         user_input = input().lower()
         if user_input == "quit":
             break
-          
-        state, reply, preferences, bonus_preferences = dialog_management(state, user_input, preferences, bonus_preferences, baseline)
+
+        state, reply, preferences, bonus_preferences, alternatives = dialog_management(state, user_input, preferences,
+                                                                         bonus_preferences, alternatives, baseline)
         debugprint(state)
         print(reply)
         if t2s:
