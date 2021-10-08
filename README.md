@@ -13,7 +13,7 @@ By Florian van der Steen, Eleni Veroni, Colino Sprockel and Sebastiaan Jans
 - [pandas 1.2.0](https://pandas.pydata.org/getting_started.html)
 
 ## Usage
-Run the ```main.py``` file using ```python3```. Zeus has two command line argument options, namely ```--baseline``` and ```--t2s```. Using ```--baseline``` the algorithm that classifies the user input is changed to a simplistic model based on direct matching. Using ```--t2s```, text will also be uttered through the audio output.
+Run the ```main.py``` file using ```python3```. Zeus has  main command line argument options, namely ```--baseline``` and ```--t2s```. Using ```--baseline``` the algorithm that classifies the user input is changed to a simplistic model based on direct matching. Using ```--t2s```, text will also be uttered through the audio output. A third option, ```--debug```, enables debug print statements.
 
 ## Example
 ```
