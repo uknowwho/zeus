@@ -47,3 +47,58 @@ def generate_reply_alternatives(df):
 
     return reply, next_state
 
+def acknowledge_bonusses(bonus_preferences):
+    #generate a string that will let the user know we will look for their preferences
+    # receive a list of booleans [good food, busy, long stay, romantic, children]
+    
+    reply = "I will now try to find a restaurant that "
+    if bonus_preferences[0] == "":
+      pass
+    elif bonus_preferences[0]:
+      bonus = "offers good food, "
+      reply += bonus
+    else:
+      bonus = "offers bad food, "
+      reply += bonus
+  
+    if bonus_preferences[1] == "":
+      pass
+    elif bonus_preferences[1]:
+      bonus = "is busy, "
+      reply += bonus
+    else:
+      bonus = "is not busy, "
+      reply += bonus
+  
+    if bonus_preferences[2] == "":
+      pass
+    elif bonus_preferences[2]:
+      bonus = "offers long stay,, "
+      reply += bonus
+    else:
+      bonus = "is fast, "
+      reply += bonus
+  
+    if bonus_preferences[3] == "":
+      pass
+    elif bonus_preferences[3]:
+      bonus = "is romantic, "
+      reply += bonus
+    else:
+      bonus = "is not romantic, "
+      reply += bonus
+  
+  
+  
+    if bonus_preferences[4] == "":
+      pass
+    elif bonus_preferences[4]:
+      bonus = "is child-friendly "
+      reply += bonus
+    else:
+      bonus = "is not child-friendly, "
+      reply += bonus
+
+
+
+    return reply
