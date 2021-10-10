@@ -12,7 +12,7 @@ import warnings
 warnings.filterwarnings("ignore")
 from keras.preprocessing.sequence import pad_sequences
 from rule_based import rule_based
-from replies import debugprint, format_reply, generate_reply, generate_reply_alternatives
+from replies import debugprint, format_reply, generate_reply, generate_reply_alternatives, acknowledge_bonusses
 from lookup import overlap, parse_match, lookup_restaurants_bonus, lookup_restaurants, confirm_preferences,\
     dontcare_check, preprocess
 
@@ -213,12 +213,12 @@ def dialog_management(state, utterance, preferences, bonus_preferences, alternat
             preference_list = extract_preferences(utterance, preference_list)
 
             debugprint(preference_list)
-            reply = "Are these correct?"
+            reply = confirm_preferences(preference_list)
             next_state = 6
         else:
             print("Sorry, Zeus doesn't understand")
             debugprint(preference_list)
-            reply = "Are these correct?"
+            reply = confirm_preferences(preference_list)
             next_state = 6
 
     # user still needs to specify some food  preference
@@ -271,11 +271,19 @@ def dialog_management(state, utterance, preferences, bonus_preferences, alternat
             bonus_preferences = get_bonus_preferences(utterance, bonus_preferences)
             # print("bonus preferences after extratcion", bonus_preferences)
             preferences_dict = dict(zip(["food", "area", "pricerange"], preference_list))
+            
+            # generate a response to let the user know we will look into their preferences
+            polite_response = acknowledge_bonusses(bonus_preferences)
+            if t2s:
+              engine.say(polite_response)
+            else:
+              print(polite_response)
+            
+            # generate list of restaurants that match general preferences, then remove restaurants that do not meet bonus preferences
             restaurant, alternatives = lookup_restaurants(preferences_dict)
-
             restaurant = lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences)
 
-            if restaurant.values.size == 0:
+            if restaurant.values.size == 0: #No restaurants found that match user requirements
                 reply = SORRY + WELCOME
                 next_state = 2
                 bonus_preferences = ["", "", "", "", ""]
