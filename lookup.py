@@ -1,6 +1,7 @@
 import re
 import pandas as pd
 import nltk
+import numpy as np 
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
