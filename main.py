@@ -4,6 +4,7 @@ import numpy as np
 import pickle
 import os
 import re
+import pyttsx3
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
@@ -17,7 +18,7 @@ from lookup import overlap, parse_match, lookup_restaurants_bonus, lookup_restau
     dontcare_check, preprocess
 
 
-WELCOME = "Welcome to Zeus bot, let me help you suggest a restaurant, do you have any preferences?"
+WELCOME = "Welcome to Zeus bot, let me help you suggest a restaurant, please begin by stating your preferences."
 SORRY = "I'm sorry I couldn't help you this time, let's start over! :) \n"
 
 dictionary = {
@@ -47,7 +48,9 @@ def extract_preferences(utterance, preferences):
 
     food, area, price = preferences[0], preferences[1], preferences[2]
     tokenized = word_tokenize(utterance)  # sentence broken into words
-    no_stopwords = [word for word in tokenized if not word in stopwords.words()]  # remove stopwords for this part
+
+    stop_words = set(stopwords.words()) - {"any"}
+    no_stopwords = [word for word in tokenized if not word in stop_words]  # remove stopwords for this part
 
     # Plain lookup
     for word in no_stopwords:
@@ -68,9 +71,9 @@ def extract_preferences(utterance, preferences):
         )
 
     # If the area was not in the list look for patterns
-    if not area and re.search(r"(\w+(?<!(ern)))((ern)*\sarea)", utterance):
+    if not area and re.search(r"(\w+(?<!(ern)))((ern)*\sarea|(ern)*\slocation)", utterance):
         area = parse_match(
-            re.search(r"(\w+(?<!(ern)))((ern)*\sarea)", utterance),
+            re.search(r"(\w+(?<!(ern)))((ern)*\sarea|(ern)*\slocation)", utterance),
             area_list
         )
 
@@ -125,7 +128,7 @@ def get_bonus_preferences(utterance, bonus_preferences):
     return bonus_preferences
 
 
-def dialog_management(state, utterance, preferences, bonus_preferences, alternatives, baseline=False):
+def dialog_management(state, utterance_class, utterance, preferences, bonus_preferences, alternatives, baseline=False):
     """Handles most of the dialog, the most important function that is repeatedly called
     in the main program.
         state:			    state number as integer, see the diagram
@@ -133,28 +136,9 @@ def dialog_management(state, utterance, preferences, bonus_preferences, alternat
         preferences:		preferences known as of now, list
         bonus_preferences:	bonus preferences known as of now, list"""
 
-    processed_utterance = preprocess(utterance)
     reply = ""
     next_state = 0
-    # TODO: why do we do this renaming? it's confusing
     preference_list = preferences
-
-    if not baseline:
-        # load the model and the vectorier
-        file = open('saved models/regression/logistic_regression.pkl', 'rb')
-        model = pickle.load(file)
-        file.close()
-        file = open('saved models/vectorizer/vectorizer.pkl', 'rb')
-        vectorizer = pickle.load(file)
-        file.close()
-
-        bow_wrds = vectorizer.transform([processed_utterance]).toarray()
-        bow_wrds = pad_sequences(bow_wrds, maxlen=704, value=0)
-        utterance_class = dictionary[model.predict(bow_wrds)[0]]
-
-    else:
-        print(processed_utterance)
-        utterance_class = rule_based(processed_utterance)
 
     debugprint("Utterance class", utterance_class)
     debugprint("State", state)
@@ -167,7 +151,7 @@ def dialog_management(state, utterance, preferences, bonus_preferences, alternat
 
     elif state == 2:  # Zeusbot finished greeting the guest and we get their first reply
 
-        if utterance_class == "inform":
+        if utterance_class == "inform" or utterance_class == "hello":
             preference_list = extract_preferences(utterance, preference_list)
             debugprint(preference_list)
 
@@ -188,8 +172,6 @@ def dialog_management(state, utterance, preferences, bonus_preferences, alternat
                 reply = SORRY + WELCOME
                 next_state = 2
             else:
-                # print("Are these correct?")
-                # print(preference_list)
                 next_state = 6
 
         elif utterance_class == "affirm" or utterance_class == "ack":
@@ -215,6 +197,7 @@ def dialog_management(state, utterance, preferences, bonus_preferences, alternat
             debugprint(preference_list)
             reply = confirm_preferences(preference_list)
             next_state = 6
+
         else:
             print("Sorry, Zeus doesn't understand")
             debugprint(preference_list)
@@ -271,14 +254,14 @@ def dialog_management(state, utterance, preferences, bonus_preferences, alternat
             bonus_preferences = get_bonus_preferences(utterance, bonus_preferences)
             # print("bonus preferences after extratcion", bonus_preferences)
             preferences_dict = dict(zip(["food", "area", "pricerange"], preference_list))
-            
+
             # generate a response to let the user know we will look into their preferences
             polite_response = acknowledge_bonusses(bonus_preferences)
             if t2s:
               engine.say(polite_response)
             else:
               print(polite_response)
-            
+
             # generate list of restaurants that match general preferences, then remove restaurants that do not meet bonus preferences
             restaurant, alternatives = lookup_restaurants(preferences_dict)
             restaurant = lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences)
@@ -319,14 +302,13 @@ if __name__ == "__main__":
     baseline = False
     if "--t2s" in sys.argv:
         t2s = True
-        engine = pyttsx3.init()
+        engine = pyttsx3.init(driverName="nsss")
 
     if "--baseline" in sys.argv:
         baseline = True
 
     df = pd.read_csv('updated_restaurant_info.csv')
     df = df.drop_duplicates()
-    # TODO: Fix NaN issue
     df = df.fillna('')
 
     area_list = set(df['area'].dropna().tolist()) | {'center'}
@@ -337,26 +319,61 @@ if __name__ == "__main__":
     bonus_preferences = ["", "", "", "", ""]
     alternatives = []
 
+    state = 2
+    if not t2s:
+    	print("\n" * 100 + WELCOME)
+    else:
+        debugprint("\n" * 100 + WELCOME)
+        engine.say(WELCOME)
+        engine.runAndWait()
+
+    reply = WELCOME
+
+
+    # load the model and the vectorizer
+	# Change this path to "saved models/decision/decision_model.pkl" for
+	# using the decision tree
     file = open('saved models/regression/logistic_regression.pkl', 'rb')
     model = pickle.load(file)
     file.close()
+    file = open('saved models/vectorizer/vectorizer.pkl', 'rb')
+    vectorizer = pickle.load(file)
+    file.close()
 
-    state = 2
-    print("Welcome to Zeus bot, let me help you suggest a restaurant, do you have any preferences?")
-    if t2s:
-        engine.say("Welcome to Zeus bot, let me help you suggest a restaurant, do you have any preferences?")
-        engine.runAndWait()
 
     while True:
-
         user_input = input().lower()
         if user_input == "quit":
             break
 
-        state, reply, preferences, bonus_preferences, alternatives = dialog_management(state, user_input, preferences,
+        processed_utterance = preprocess(user_input)
+
+        if not baseline:
+            bow_wrds = vectorizer.transform([processed_utterance]).toarray()
+            bow_wrds = pad_sequences(bow_wrds, maxlen=704, value=0)
+            utterance_class = dictionary[model.predict(bow_wrds)[0]]
+
+        else:
+            utterance_class = rule_based(processed_utterance)
+
+        if utterance_class == "repeat":
+            if t2s:
+                debugprint(reply)
+                engine.say(reply)
+                engine.runAndWait()
+
+            else:
+                print(reply)
+
+            continue
+
+
+        state, reply, preferences, bonus_preferences, alternatives = dialog_management(state, utterance_class, processed_utterance, preferences,
                                                                          bonus_preferences, alternatives, baseline)
         debugprint(state)
-        print(reply)
-        if t2s:
+        if not t2s:
+            print(reply)
+        else:
             engine.say(reply)
             engine.runAndWait()
+            debugprint(reply)
