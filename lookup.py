@@ -1,7 +1,7 @@
 import re
 import pandas as pd
 import nltk
-import numpy as np 
+import numpy as np
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
@@ -51,7 +51,7 @@ def parse_match(match, property_list):
 
     word = match.group(1)
 
-    if word == "any":
+    if word == "ani":
         return "dontcare"
 
     one_dist = []
