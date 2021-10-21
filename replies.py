@@ -1,5 +1,6 @@
-import pandas as pd
 import sys
+WELCOME = "Welcome to Zeus bot, let me help you suggest a restaurant, please begin by stating your preferences."
+SORRY = "I'm sorry I couldn't help you this time, let's start over! :) \n"
 
 
 def debugprint(*args):
