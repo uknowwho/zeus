@@ -28,7 +28,10 @@ def preprocess(sentence):
 
     stemmed = []
     for token in tokenized:
-        stemmed_word = stemmer.stem(token)
+        if token == "expensive":
+            stemmed_word = "expensive"
+        else:
+            stemmed_word = stemmer.stem(token)
         stemmed.append(stemmed_word)
     # flatten list in stemmed
     processed_sentence = ' '.join(stem for stem in stemmed)
