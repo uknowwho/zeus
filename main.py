@@ -147,6 +147,7 @@ def dialog_management(state, utterance_class, utterance, preferences, bonus_pref
         reply = SORRY + WELCOME
         next_state = 2
         preference_list = ["", "", ""]
+        bonus_preferences = ["", "", "", "", ""]
         return next_state, reply, preference_list, bonus_preferences
 
     elif state == 2:  # Zeusbot finished greeting the guest and we get their first reply
@@ -170,6 +171,8 @@ def dialog_management(state, utterance_class, utterance, preferences, bonus_pref
             preference_list = extract_preferences(utterance, preference_list)
             if preference_list == previous_preferences:
                 reply = SORRY + WELCOME
+		preference_list = ["", "", ""]
+                bonus_preferences = ["", "", "", "", ""]
                 next_state = 2
             else:
                 next_state = 6
@@ -269,6 +272,7 @@ def dialog_management(state, utterance_class, utterance, preferences, bonus_pref
             if restaurant.values.size == 0: #No restaurants found that match user requirements
                 reply = SORRY + WELCOME
                 next_state = 2
+		preference_list = ["", "", ""]
                 bonus_preferences = ["", "", "", "", ""]
             else:
                 reply, next_state = generate_reply(restaurant)
@@ -302,7 +306,10 @@ if __name__ == "__main__":
     baseline = False
     if "--t2s" in sys.argv:
         t2s = True
-        engine = pyttsx3.init(driverName="nsss")
+	
+	# use the driverName option on Mac, otherwise don't
+	engine = pyttsx3.init()
+        # engine = pyttsx3.init(driverName="nsss")
 
     if "--baseline" in sys.argv:
         baseline = True
