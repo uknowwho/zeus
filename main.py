@@ -280,9 +280,17 @@ def dialog_management(state, utterance_class, utterance, preferences, bonus_pref
 
     elif state == 12:  # Zeusbot suggested a restaurant and we get their reply
         if utterance_class == "affirm" or utterance_class == "ack":
-            print("Thank you for choosing Zeus Bot, I hope you enjoy your dinner. Goodbye.")
+		
+	    if t2s:
+		debugprint("Thank you for choosing Zeus Bot, I hope you enjoy your dinner. Goodbye.")
+		engine.say("Thank you for choosing Zeus Bot, I hope you enjoy your dinner. Goodbye.")
+		engine.runAndWait()
+	    else:
+            	print("Thank you for choosing Zeus Bot, I hope you enjoy your dinner. Goodbye.")
+		
             next_state = 17
             exit()
+		
         elif utterance_class == "reqalt" or utterance_class == "negate" or utterance_class == "deny":
 
             reply, next_state = generate_reply_alternatives(alternatives)
