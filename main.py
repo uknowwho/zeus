@@ -19,7 +19,7 @@ from lookup import overlap, parse_match, lookup_restaurants_bonus, lookup_restau
 
 
 WELCOME = "Welcome to Zeus bot, let me help you suggest a restaurant, please begin by stating your preferences."
-SORRY = "I'm sorry I couldn't help you this time, let's start over! :) \n"
+SORRY = "I'm sorry I couldn't help you this time, let's start over!\n"
 
 dictionary = {
     0: "ack",
