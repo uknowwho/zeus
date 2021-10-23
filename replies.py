@@ -14,8 +14,8 @@ def format_reply(df):
 
     reply = f"""I think you would really like {df['restaurantname'].to_string(index=False)},
 it's located at {df['addr'].to_string(index=False)} {df['postcode'].to_string(index=False)}
-in the  {df['area'].to_string(index=False)}  and the phone number is
-{df['phone'].to_string(index=False)} Do you agree? If you find that I keep
+in the {df['area'].to_string(index=False)} and the phone number is
+{df['phone'].to_string(index=False)}. Do you agree? If you find that I keep
 suggesting the same restaurant, you could try again and ask for something different."""
     return reply
 
