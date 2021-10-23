@@ -1,7 +1,6 @@
 import sys
 WELCOME = "Welcome to Zeus bot, let me help you suggest a restaurant, please begin by stating your preferences."
-SORRY = "I'm sorry I couldn't help you this time, let's start over! :) \n"
-
+SORRY = "I'm sorry I couldn't help you this time, let's start over!\n"
 
 def debugprint(*args):
     """Print the arguments only if the global DEBUG option is set"""
@@ -13,10 +12,8 @@ def debugprint(*args):
 def format_reply(df):
 
     reply = f"""I think you would really like {df['restaurantname'].to_string(index=False)},
-it's located at {df['addr'].to_string(index=False)} {df['postcode'].to_string(index=False)}
-in the {df['area'].to_string(index=False)} and the phone number is
-{df['phone'].to_string(index=False)}. Do you agree? If you find that I keep
-suggesting the same restaurant, you could try again and ask for something different."""
+it's located at {df['addr'].to_string(index=False)} {df['postcode'].to_string(index=False)} in the {df['area'].to_string(index=False)} and the phone number is
+{df['phone'].to_string(index=False)}. Do you agree? If you want to get alternative suggestions please type no i don't agree """
     return reply
 
 
