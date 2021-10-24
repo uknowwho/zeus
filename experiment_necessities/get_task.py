@@ -27,7 +27,7 @@ tasks = [
 ##    "Find an expensive european restaurant. The area doesn’t matter. When the system asks for extra preferences, you will specify long stay. When the system suggests a restaurant, accept the suggestion and don't ask for alternatives.",
     "Find an expensive european restaurant. The area doesn’t matter. When the system asks for extra preferences, you will specify long stay. When the system suggests a restaurant, accept the suggestion and don't ask for alternatives.",
     "Find an expensive european restaurant. The area doesn’t matter. When the system asks for extra preferences, you will not add any. When the system suggests a restaurant, accept the suggestion and don't ask for alternatives.",
-    "Find an expensive steakhouse in the east. When the system asks for extra preferences, you will not add any. When the system suggests a restaurant, accept the suggestion and don't ask for alternatives.",
+##    "Find an expensive steakhouse in the east. When the system asks for extra preferences, you will not add any. When the system suggests a restaurant, accept the suggestion and don't ask for alternatives.",
     "Find a cheap persian restaurant in the north. When the system asks for extra preferences, you will not add any. When the system suggests a restaurant, accept the suggestion and don't ask for alternatives."
 ]
 
