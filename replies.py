@@ -13,7 +13,7 @@ def format_reply(df):
 
     reply = f"""I think you would really like {df['restaurantname'].to_string(index=False)},
 it's located at {df['addr'].to_string(index=False)} {df['postcode'].to_string(index=False)} in the {df['area'].to_string(index=False)} and the phone number is
-{df['phone'].to_string(index=False)}. Do you agree? If you want to get alternative suggestions please type no i don't agree """
+{df['phone'].to_string(index=False)}. Do you agree? If you want to get alternative suggestions, please say that you don't agree."""
     return reply
 
 
@@ -36,7 +36,7 @@ def generate_reply(df):
 
 def generate_reply_alternatives(df):
     if df.values.size == 0:
-        reply = "I am sorry, I could not find an alternative restaurant to match your preferences, please try again"
+        reply = "I am sorry, I could not find an alternative restaurant to match your preferences, please try again."
         next_state = 2
     else:
         df = df.sample()
@@ -71,7 +71,7 @@ def acknowledge_bonusses(bonus_preferences):
     if bonus_preferences[2] == "":
       pass
     elif bonus_preferences[2]:
-      bonus = "offers long stay,, "
+      bonus = "offers the option for a long stay, "
       reply += bonus
     else:
       bonus = "is fast, "
@@ -91,7 +91,7 @@ def acknowledge_bonusses(bonus_preferences):
     if bonus_preferences[4] == "":
       pass
     elif bonus_preferences[4]:
-      bonus = "is child-friendly "
+      bonus = "is child-friendly, "
       reply += bonus
     else:
       bonus = "is not child-friendly, "
