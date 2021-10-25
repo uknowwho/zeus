@@ -382,7 +382,7 @@ if __name__ == "__main__":
             continue
 
 
-        state, reply, preferences, bonus_preferences, alternatives = dialog_management(state, utterance_class, processed_utterance, preferences,
+        state, reply, preferences, bonus_preferences, alternatives = dialog_management(state, utterance_class, user_input, preferences,
                                                                          bonus_preferences, alternatives, baseline)
         debugprint(state)
         if not t2s:
