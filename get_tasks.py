@@ -25,14 +25,14 @@ import random
 ##]
 
 tasks = [
-    "Find an expensive italian restaurant in the south. When the system asks for extra preferences, you will specify long stay. When the system suggests a restaurant, accept the suggestion and don't ask for alternatives.",
-    "Find an expensive italian restaurant in the south. When the system asks for extra preferences, you will specify romantic. When the system suggests something, you will accept the suggestion and not ask for alternatives.",
-    "Find an expensive european restaurant. The area doesn’t matter. When the system asks for extra preferences, you will specify long stay. When the system suggests a restaurant, accept the suggestion and don't ask for alternatives.",
-    "Find an expensive european restaurant. The area doesn’t matter. When the system asks for extra preferences, you will not add any. When the system suggests a restaurant, accept the suggestion and don't ask for alternatives.",
-    "Find a european restaurant in the south. The price range doesn’t matter. When the system asks for extra preferences, you will not  add any. When the system suggests something, you will accept the suggestion and not ask for alternatives.",
-	"Find an indian restaurant in the north. The price range doesn’t matter. When the system asks for extra preferences, you will specify busy . When the system suggests something, you will accept the suggestion and not ask for alternatives.",
-    "Find a cheap persian restaurant in the north. When the system asks for extra preferences, you will not add any. When the system suggests a restaurant, accept the suggestion and don't ask for alternatives.",
-    "Find an expensive french restaurant in the north. When the system asks for extra preferences, you will specify  good food . When the system suggests something, you will accept the suggestion and not ask for alternatives."
+    """Find an expensive italian restaurant in the south. When the system asks for extra preferences, you will specify "long stay". When the system suggests a restaurant, accept the suggestion and don't ask for alternatives.""",
+    """Find an expensive italian restaurant in the south. When the system asks for extra preferences, you will specify "romantic". When the system suggests something, you will accept the suggestion and not ask for alternatives.""",
+    """Find an expensive european restaurant. The area doesn’t matter. When the system asks for extra preferences, you will specify "long stay". When the system suggests a restaurant, accept the suggestion and don't ask for alternatives.""",
+    """Find an expensive european restaurant. The area doesn’t matter. When the system asks for extra preferences, you will not add any. When the system suggests a restaurant, accept the suggestion and don't ask for alternatives.""",
+    """Find a european restaurant in the south. The price range doesn’t matter. When the system asks for extra preferences, you will not add any. When the system suggests something, you will accept the suggestion and not ask for alternatives.""",
+    """Find an indian restaurant in the north. The price range doesn’t matter. When the system asks for extra preferences, you will specify "busy". When the system suggests something, you will accept the suggestion and not ask for alternatives.""",
+    """Find a cheap persian restaurant in the north. When the system asks for extra preferences, you will not add any. When the system suggests a restaurant, accept the suggestion and don't ask for alternatives.""",
+    """Find an expensive french restaurant in the north. When the system asks for extra preferences, you will specify "good food". When the system suggests something, you will accept the suggestion and not ask for alternatives."""
 ]
 
 
