@@ -1,22 +1,21 @@
 import pandas as pd
 import sys
-import numpy as np
 import pickle
 import os
 import re
 import pyttsx3
-from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import warnings
+
 warnings.filterwarnings("ignore")
 from keras.preprocessing.sequence import pad_sequences
 from rule_based import rule_based
 from replies import debugprint, format_reply, generate_reply, generate_reply_alternatives, acknowledge_bonusses
-from lookup import overlap, parse_match, lookup_restaurants_bonus, lookup_restaurants, confirm_preferences,\
+from lookup import overlap, parse_match, lookup_restaurants_bonus, lookup_restaurants, confirm_preferences, \
     dontcare_check, preprocess
-
 
 WELCOME = "Welcome to Zeus bot, let me help you suggest a restaurant, please begin by stating your preferences."
 SORRY = "I'm sorry I couldn't help you this time, let's start over!\n"
@@ -38,6 +37,7 @@ dictionary = {
     13: "restart",
     14: "thankyou"
 }
+
 
 def extract_preferences(utterance, preferences):
     """Takes in an utterance string that is expected to contain preferences for restaurant
@@ -261,15 +261,15 @@ def dialog_management(state, utterance_class, utterance, preferences, bonus_pref
             # generate a response to let the user know we will look into their preferences
             polite_response = acknowledge_bonusses(bonus_preferences)
             if t2s:
-              engine.say(polite_response)
+                engine.say(polite_response)
             else:
-              print(polite_response)
+                print(polite_response)
 
             # generate list of restaurants that match general preferences, then remove restaurants that do not meet bonus preferences
             restaurant, alternatives = lookup_restaurants(preferences_dict)
             restaurant = lookup_restaurants_bonus(restaurant, alternatives, bonus_preferences)
 
-            if restaurant.values.size == 0: #No restaurants found that match user requirements
+            if restaurant.values.size == 0:  # No restaurants found that match user requirements
                 reply = SORRY + WELCOME
                 next_state = 2
                 preference_list = ["", "", ""]
@@ -279,17 +279,17 @@ def dialog_management(state, utterance_class, utterance, preferences, bonus_pref
                 next_state = 12
 
     elif state == 12:  # Zeusbot suggested a restaurant and we get their reply
-        if utterance_class == "affirm" or utterance_class == "ack":
+        if utterance_class == "affirm" or utterance_class == "ack" or ("agree" and not "dont" in utterance):
             if t2s:
                 debugprint("Thank you for choosing Zeus Bot, I hope you enjoy your dinner. Goodbye.")
                 engine.say("Thank you for choosing Zeus Bot, I hope you enjoy your dinner. Goodbye.")
                 engine.runAndWait()
             else:
                 print("Thank you for choosing Zeus Bot, I hope you enjoy your dinner. Goodbye.")
-		
+
             next_state = 17
             exit()
-		
+
         elif utterance_class == "reqalt" or utterance_class == "negate" or utterance_class == "deny":
 
             reply, next_state = generate_reply_alternatives(alternatives)
@@ -313,8 +313,8 @@ if __name__ == "__main__":
     baseline = False
     if "--t2s" in sys.argv:
         t2s = True
-	
-	# use the driverName option on Mac, otherwise don't
+
+    # use the driverName option on Mac, otherwise don't
     engine = pyttsx3.init()
     # engine = pyttsx3.init(driverName="nsss")
 
@@ -335,7 +335,7 @@ if __name__ == "__main__":
 
     state = 2
     if not t2s:
-    	print("\n" * 100 + WELCOME)
+        print("\n" * 100 + WELCOME)
     else:
         debugprint("\n" * 100 + WELCOME)
         engine.say(WELCOME)
@@ -343,17 +343,15 @@ if __name__ == "__main__":
 
     reply = WELCOME
 
-
     # load the model and the vectorizer
-	# Change this path to "saved models/decision/decision_model.pkl" for
-	# using the decision tree
+    # Change this path to "saved models/decision/decision_model.pkl" for
+    # using the decision tree
     file = open('saved models/regression/logistic_regression.pkl', 'rb')
     model = pickle.load(file)
     file.close()
     file = open('saved models/vectorizer/vectorizer.pkl', 'rb')
     vectorizer = pickle.load(file)
     file.close()
-
 
     while True:
         user_input = input().lower()
@@ -381,9 +379,10 @@ if __name__ == "__main__":
 
             continue
 
-
-        state, reply, preferences, bonus_preferences, alternatives = dialog_management(state, utterance_class, user_input, preferences,
-                                                                         bonus_preferences, alternatives, baseline)
+        state, reply, preferences, bonus_preferences, alternatives = dialog_management(state, utterance_class,
+                                                                                       user_input, preferences,
+                                                                                       bonus_preferences, alternatives,
+                                                                                       baseline)
         debugprint(state)
         if not t2s:
             print(reply)
