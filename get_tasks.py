@@ -41,5 +41,5 @@ for i in range(3):
     print(task)
     tasks.remove(task)
     print()
-    input("Press enter twice for the next task")
+    input()
     input()
